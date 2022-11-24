@@ -35,7 +35,9 @@ export type FilterByValueType<T extends object, Type> = {
   [K in keyof T as T[K] extends Type ? K : never]: T[K];
 };
 
-export type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void
+export type UnionToIntersection<U extends Record<string, any>> = (U extends unknown ? (k: U) => void : never) extends (
+  k: infer I,
+) => void
   ? I
   : never;
 
