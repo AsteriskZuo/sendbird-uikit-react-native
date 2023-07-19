@@ -1,12 +1,16 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { GroupChannelHandler } from '@sendbird/chat/groupChannel';
-import { Logger, SendbirdChatSDK } from '@sendbird/uikit-utils';
+import { OpenChannelHandler } from '@sendbird/chat/openChannel';
+import type { SendbirdChatSDK } from '@sendbird/uikit-utils';
 
-export const useChannelHandler = (
+type ChannelType = 'open' | 'group';
+
+export const useChannelHandler = <T extends ChannelType = 'group'>(
   sdk: SendbirdChatSDK,
   handlerId: string,
-  hookHandler: Partial<GroupChannelHandler>,
+  hookHandler: Partial<T extends 'group' ? GroupChannelHandler : OpenChannelHandler>,
+  type: T = 'group' as T,
 ) => {
   const handlerRef = useRef(hookHandler);
   useLayoutEffect(() => {
@@ -14,18 +18,27 @@ export const useChannelHandler = (
   });
 
   useEffect(() => {
-    Logger.debug('[useChannelHandler] hook called by', handlerId);
-
-    const handler = new GroupChannelHandler();
-    const handlerKeys = Object.keys(handler) as (keyof typeof handler)[];
-    handlerKeys.forEach((key) => {
-      handler[key] = (...args: unknown[]) => {
+    const handlerMapper = <T extends GroupChannelHandler | OpenChannelHandler>(handler: T): T => {
+      const handlerKeys = Object.keys(handler) as (keyof T)[];
+      handlerKeys.forEach((key) => {
         // @ts-ignore
-        handlerRef.current[key]?.(...args);
-      };
-    });
+        handler[key] = (...args: unknown[]) => handlerRef.current?.[key]?.(...args);
+      });
+      return handler;
+    };
 
-    sdk.groupChannel.addGroupChannelHandler(handlerId, handler);
-    return () => sdk.groupChannel.removeGroupChannelHandler(handlerId);
+    if (type === 'group') {
+      sdk.groupChannel.addGroupChannelHandler(handlerId, handlerMapper(new GroupChannelHandler()));
+    } else if (type === 'open') {
+      sdk.openChannel.addOpenChannelHandler(handlerId, handlerMapper(new OpenChannelHandler()));
+    }
+
+    return () => {
+      if (type === 'group') {
+        sdk.groupChannel.removeGroupChannelHandler(handlerId);
+      } else if (type === 'open') {
+        sdk.openChannel.removeOpenChannelHandler(handlerId);
+      }
+    };
   }, [sdk, handlerId]);
 };

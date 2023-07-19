@@ -11,7 +11,7 @@ import useHeaderStyle from '../../styles/useHeaderStyle';
 import useUIKitTheme from '../../theme/useUIKitTheme';
 
 type HeaderElement = string | React.ReactElement | null;
-type HeaderProps = BaseHeaderProps<
+export type HeaderProps = BaseHeaderProps<
   {
     title?: HeaderElement;
     left?: HeaderElement;
@@ -19,7 +19,11 @@ type HeaderProps = BaseHeaderProps<
     onPressLeft?: () => void;
     onPressRight?: () => void;
   },
-  { clearTitleMargin?: boolean }
+  {
+    clearTitleMargin?: boolean;
+    clearStatusBarTopInset?: boolean;
+    statusBarTopInsetAs?: 'padding' | 'margin';
+  }
 >;
 
 const AlignMapper = { left: 'flex-start', center: 'center', right: 'flex-end' } as const;
@@ -36,16 +40,22 @@ const Header: ((props: HeaderProps) => JSX.Element) & {
   onPressLeft,
   onPressRight,
   clearTitleMargin = false,
+  clearStatusBarTopInset = false,
+  statusBarTopInsetAs = 'padding',
 }) => {
   const { topInset, defaultTitleAlign, defaultHeight } = useHeaderStyle();
+
   const { colors } = useUIKitTheme();
   const { left: paddingLeft, right: paddingRight } = useSafeAreaInsets();
 
   const actualTitleAlign = titleAlign ?? defaultTitleAlign;
+  const actualTopInset = clearStatusBarTopInset ? 0 : topInset;
 
   if (!title && !left && !right) {
     return (
-      <View style={{ paddingTop: topInset, backgroundColor: colors.ui.header.nav.none.background }}>{children}</View>
+      <View style={{ paddingTop: actualTopInset, backgroundColor: colors.ui.header.nav.none.background }}>
+        {children}
+      </View>
     );
   }
 
@@ -54,9 +64,9 @@ const Header: ((props: HeaderProps) => JSX.Element) & {
       style={[
         styles.container,
         {
+          [statusBarTopInsetAs === 'padding' ? 'paddingTop' : 'marginTop']: actualTopInset,
           paddingLeft: paddingLeft + styles.container.paddingHorizontal,
           paddingRight: paddingRight + styles.container.paddingHorizontal,
-          paddingTop: topInset,
           backgroundColor: colors.ui.header.nav.none.background,
           borderBottomColor: colors.ui.header.nav.none.borderBottom,
         },

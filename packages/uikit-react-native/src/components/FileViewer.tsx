@@ -63,10 +63,8 @@ const FileViewer = ({
   const fileType = getFileType(fileMessage.type || getFileExtension(fileMessage.url));
 
   useEffect(() => {
-    if (!mediaService?.VideoComponent || fileType === 'file') {
-      onClose();
-    }
-  }, [mediaService]);
+    if (fileType === 'file') onClose();
+  }, []);
 
   const fileViewer = useIIFE(() => {
     switch (fileType) {
@@ -83,7 +81,6 @@ const FileViewer = ({
 
       case 'video':
       case 'audio': {
-        if (!mediaService?.VideoComponent) return null;
         return (
           <mediaService.VideoComponent
             source={{ uri: fileMessage.url }}
@@ -107,13 +104,13 @@ const FileViewer = ({
       onPressDelete(fileMessage);
     } else {
       alert({
-        title: STRINGS.GROUP_CHANNEL.DIALOG_MESSAGE_DELETE_CONFIRM_TITLE,
+        title: STRINGS.LABELS.CHANNEL_MESSAGE_DELETE_CONFIRM_TITLE,
         buttons: [
           {
-            text: STRINGS.GROUP_CHANNEL.DIALOG_MESSAGE_DELETE_CONFIRM_CANCEL,
+            text: STRINGS.LABELS.CHANNEL_MESSAGE_DELETE_CONFIRM_CANCEL,
           },
           {
-            text: STRINGS.GROUP_CHANNEL.DIALOG_MESSAGE_DELETE_CONFIRM_OK,
+            text: STRINGS.LABELS.CHANNEL_MESSAGE_DELETE_CONFIRM_OK,
             style: 'destructive',
             onPress: () => {
               deleteMessage()

@@ -9,7 +9,7 @@ import { useSendbirdChat, createGroupChannelSettingsFragment } from '@sendbird/u
 import { useGroupChannel } from "@sendbird/uikit-chat-hooks";
 
 const GroupChannelSettingsFragment = createGroupChannelSettingsFragment();
-const GroupChannelSettingsScreen = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelSettingsScreen = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -17,7 +17,13 @@ const GroupChannelSettingsScreen = ({ params }: { params: { channelUrl: string }
   const navigateToBack = () => {};
   const navigateToGroupChannelListScreen = () => {};
   const navigateToGroupChannelMembersScreen = () => {};
-  const navigateToGroupChannelModerationsScreen = () => {};
+  const navigateToGroupChannelModerationScreen = () => {};
+
+  // Only required when you enabled mention.
+  const navigateToGroupChannelNotificationScreen = () => {};
+
+  // Only required when you enabled message search.
+  const navigateToMessageSearchScreen = () => {};
 
   return (
     <GroupChannelSettingsFragment
@@ -25,7 +31,9 @@ const GroupChannelSettingsScreen = ({ params }: { params: { channelUrl: string }
       onPressHeaderLeft={navigateToBack}
       onPressMenuLeaveChannel={navigateToGroupChannelListScreen}
       onPressMenuMembers={navigateToGroupChannelMembersScreen}
-      onPressMenuModerations={navigateToGroupChannelModerationsScreen}
+      onPressMenuModeration={navigateToGroupChannelModerationScreen}
+      onPressMenuNotification={navigateToGroupChannelNotificationScreen}
+      onPressMenuSearchInChannel={navigateToMessageSearchScreen}
     />
   );
 };
@@ -66,7 +74,7 @@ import { Icon } from '@sendbird/uikit-react-native-foundation';
 // import { useGroupChannel } from "@sendbird/uikit-chat-hooks";
 
 const GroupChannelSettingsFragment2 = createGroupChannelSettingsFragment();
-const GroupChannelSettingsScreen2 = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelSettingsScreen2 = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -74,7 +82,13 @@ const GroupChannelSettingsScreen2 = ({ params }: { params: { channelUrl: string 
   const navigateToBack = () => {};
   const navigateToGroupChannelListScreen = () => {};
   const navigateToGroupChannelMembersScreen = () => {};
-  const navigateToGroupChannelModerationsScreen = () => {};
+  const navigateToGroupChannelModerationScreen = () => {};
+
+  // Only required when you enabled mention.
+  const navigateToGroupChannelNotificationScreen = () => {};
+
+  // Only required when you enabled message search.
+  const navigateToMessageSearchScreen = () => {};
 
   return (
     <GroupChannelSettingsFragment2
@@ -82,7 +96,9 @@ const GroupChannelSettingsScreen2 = ({ params }: { params: { channelUrl: string 
       onPressHeaderLeft={navigateToBack}
       onPressMenuLeaveChannel={navigateToGroupChannelListScreen}
       onPressMenuMembers={navigateToGroupChannelMembersScreen}
-      onPressMenuModerations={navigateToGroupChannelModerationsScreen}
+      onPressMenuModeration={navigateToGroupChannelModerationScreen}
+      onPressMenuNotification={navigateToGroupChannelNotificationScreen}
+      onPressMenuSearchInChannel={navigateToMessageSearchScreen}
       menuItemsCreator={(items) => {
         items.unshift({
           icon: 'channels',

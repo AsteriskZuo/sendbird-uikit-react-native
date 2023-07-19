@@ -1,65 +1,102 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 
+import { ReplyType } from '@sendbird/chat/message';
 import { useGroupChannelMessages } from '@sendbird/uikit-chat-hooks';
-import { NOOP, PASS, SendbirdGroupChannel, messageComparator, useFreshCallback } from '@sendbird/uikit-utils';
+import {
+  NOOP,
+  PASS,
+  SendbirdFileMessage,
+  SendbirdGroupChannel,
+  SendbirdUserMessage,
+  messageComparator,
+  useFreshCallback,
+  useIIFE,
+  useRefTracker,
+} from '@sendbird/uikit-utils';
 
-import MessageRenderer from '../components/MessageRenderer';
+import GroupChannelMessageRenderer from '../components/GroupChannelMessageRenderer';
 import NewMessagesButton from '../components/NewMessagesButton';
 import ScrollToBottomButton from '../components/ScrollToBottomButton';
 import StatusComposition from '../components/StatusComposition';
 import createGroupChannelModule from '../domain/groupChannel/module/createGroupChannelModule';
-import type { GroupChannelFragment, GroupChannelModule, GroupChannelProps } from '../domain/groupChannel/types';
+import type {
+  GroupChannelFragment,
+  GroupChannelModule,
+  GroupChannelProps,
+  GroupChannelPubSubContextPayload,
+} from '../domain/groupChannel/types';
 import { useSendbirdChat } from '../hooks/useContext';
+import pubsub from '../utils/pubsub';
 
 const createGroupChannelFragment = (initModule?: Partial<GroupChannelModule>): GroupChannelFragment => {
   const GroupChannelModule = createGroupChannelModule(initModule);
 
   return ({
+    searchItem,
     renderNewMessagesButton = (props) => <NewMessagesButton {...props} />,
     renderScrollToBottomButton = (props) => <ScrollToBottomButton {...props} />,
     renderMessage,
     enableMessageGrouping = true,
-    enableTypingIndicator = true,
+    enableTypingIndicator,
     onPressHeaderLeft = NOOP,
     onPressHeaderRight = NOOP,
-    onPressImageMessage,
     onPressMediaMessage = NOOP,
     onChannelDeleted = NOOP,
-    onBeforeSendFileMessage = PASS,
     onBeforeSendUserMessage = PASS,
+    onBeforeSendFileMessage = PASS,
+    onBeforeUpdateUserMessage = PASS,
+    onBeforeUpdateFileMessage = PASS,
     channel,
     keyboardAvoidOffset,
-    queryCreator,
     collectionCreator,
     sortComparator = messageComparator,
     flatListProps,
   }) => {
-    const { sdk, currentUser } = useSendbirdChat();
+    const { sdk, currentUser, sbOptions } = useSendbirdChat();
+
+    const [internalSearchItem, setInternalSearchItem] = useState(searchItem);
+    const navigateFromMessageSearch = useCallback(() => Boolean(searchItem), []);
+
+    const [groupChannelPubSub] = useState(() => pubsub<GroupChannelPubSubContextPayload>());
+    const [scrolledAwayFromBottom, setScrolledAwayFromBottom] = useState(false);
+    const scrolledAwayFromBottomRef = useRefTracker(scrolledAwayFromBottom);
+
+    const replyType = useIIFE(() => {
+      if (sbOptions.uikit.groupChannel.channel.replyType === 'none') return ReplyType.NONE;
+      else return ReplyType.ONLY_REPLY_TO_CHANNEL;
+    });
 
     const {
+      loading,
       messages,
-      nextMessages,
-      newMessagesFromMembers,
+      newMessages,
+      resetNewMessages,
       next,
       prev,
+      hasNext,
       sendFileMessage,
       sendUserMessage,
       updateFileMessage,
       updateUserMessage,
       resendMessage,
       deleteMessage,
-      loading,
+      resetWithStartingPoint,
     } = useGroupChannelMessages(sdk, channel, currentUser?.userId, {
+      shouldCountNewMessages: () => scrolledAwayFromBottomRef.current,
+      onMessagesReceived(messages) {
+        groupChannelPubSub.publish({ type: 'MESSAGES_RECEIVED', data: { messages } });
+      },
       collectionCreator,
-      queryCreator,
       sortComparator,
       onChannelDeleted,
-      enableCollectionWithoutLocalCache: !queryCreator,
+      replyType,
+      startingPoint: internalSearchItem?.startingPoint,
+      enableCollectionWithoutLocalCache: true,
     });
 
-    const _renderMessage: GroupChannelProps['MessageList']['renderMessage'] = useFreshCallback((props) => {
+    const renderItem: GroupChannelProps['MessageList']['renderMessage'] = useFreshCallback((props) => {
       if (renderMessage) return renderMessage(props);
-      return <MessageRenderer {...props} />;
+      return <GroupChannelMessageRenderer {...props} />;
     });
 
     const memoizedFlatListProps = useMemo(
@@ -68,64 +105,95 @@ const createGroupChannelFragment = (initModule?: Partial<GroupChannelModule>): G
         contentContainerStyle: { flexGrow: 1 },
         ...flatListProps,
       }),
-      [loading, flatListProps],
+      [flatListProps],
     );
 
-    const onSendFileMessage: GroupChannelProps['Input']['onSendFileMessage'] = useFreshCallback(async (file) => {
-      const processedParams = await onBeforeSendFileMessage({ file });
-      await sendFileMessage(processedParams);
-    });
-    const onSendUserMessage: GroupChannelProps['Input']['onSendUserMessage'] = useFreshCallback(async (text) => {
-      const processedParams = await onBeforeSendUserMessage({ message: text });
-      await sendUserMessage(processedParams);
-    });
-    const onUpdateFileMessage: GroupChannelProps['Input']['onUpdateFileMessage'] = useFreshCallback(
-      async (editedFile, message) => {
-        const processedParams = await onBeforeSendFileMessage({ file: editedFile });
-        await updateFileMessage(message.messageId, processedParams);
+    const onResetMessageList = useCallback((callback?: () => void) => {
+      resetWithStartingPoint(Number.MAX_SAFE_INTEGER, callback);
+      setInternalSearchItem(undefined);
+    }, []);
+
+    const onPending = (message: SendbirdFileMessage | SendbirdUserMessage) => {
+      groupChannelPubSub.publish({ type: 'MESSAGE_SENT_PENDING', data: { message } });
+    };
+
+    const onSent = (message: SendbirdFileMessage | SendbirdUserMessage) => {
+      groupChannelPubSub.publish({ type: 'MESSAGE_SENT_SUCCESS', data: { message } });
+    };
+
+    const onPressSendUserMessage: GroupChannelProps['Input']['onPressSendUserMessage'] = useFreshCallback(
+      async (params) => {
+        const processedParams = await onBeforeSendUserMessage(params);
+        const message = await sendUserMessage(processedParams, onPending);
+        onSent(message);
       },
     );
-    const onUpdateUserMessage: GroupChannelProps['Input']['onUpdateUserMessage'] = useFreshCallback(
-      async (editedText, message) => {
-        const processedParams = await onBeforeSendUserMessage({ message: editedText });
+    const onPressSendFileMessage: GroupChannelProps['Input']['onPressSendFileMessage'] = useFreshCallback(
+      async (params) => {
+        const processedParams = await onBeforeSendFileMessage(params);
+        const message = await sendFileMessage(processedParams, onPending);
+        onSent(message);
+      },
+    );
+    const onPressUpdateUserMessage: GroupChannelProps['Input']['onPressUpdateUserMessage'] = useFreshCallback(
+      async (message, params) => {
+        const processedParams = await onBeforeUpdateUserMessage(params);
         await updateUserMessage(message.messageId, processedParams);
       },
     );
+    const onPressUpdateFileMessage: GroupChannelProps['Input']['onPressUpdateFileMessage'] = useFreshCallback(
+      async (message, params) => {
+        const processedParams = await onBeforeUpdateFileMessage(params);
+        await updateFileMessage(message.messageId, processedParams);
+      },
+    );
+    const onScrolledAwayFromBottom = useFreshCallback((value: boolean) => {
+      if (!value) resetNewMessages();
+      setScrolledAwayFromBottom(value);
+    });
 
     return (
       <GroupChannelModule.Provider
         channel={channel}
-        enableTypingIndicator={enableTypingIndicator}
+        groupChannelPubSub={groupChannelPubSub}
+        enableTypingIndicator={enableTypingIndicator ?? sbOptions.uikit.groupChannel.channel.enableTypingIndicator}
         keyboardAvoidOffset={keyboardAvoidOffset}
       >
-        <GroupChannelModule.Header onPressHeaderLeft={onPressHeaderLeft} onPressHeaderRight={onPressHeaderRight} />
+        <GroupChannelModule.Header
+          shouldHideRight={navigateFromMessageSearch}
+          onPressHeaderLeft={onPressHeaderLeft}
+          onPressHeaderRight={onPressHeaderRight}
+        />
         <StatusComposition loading={loading} LoadingComponent={<GroupChannelModule.StatusLoading />}>
           <GroupChannelModule.MessageList
             channel={channel}
+            searchItem={internalSearchItem}
+            onResetMessageList={onResetMessageList}
             enableMessageGrouping={enableMessageGrouping}
             currentUserId={currentUser?.userId}
-            renderMessage={_renderMessage}
+            renderMessage={renderItem}
             messages={messages}
-            nextMessages={nextMessages}
-            newMessagesFromMembers={newMessagesFromMembers}
+            newMessages={newMessages}
             onTopReached={prev}
             onBottomReached={next}
+            hasNext={hasNext}
+            scrolledAwayFromBottom={scrolledAwayFromBottom}
+            onScrolledAwayFromBottom={onScrolledAwayFromBottom}
             renderNewMessagesButton={renderNewMessagesButton}
             renderScrollToBottomButton={renderScrollToBottomButton}
             onResendFailedMessage={resendMessage}
             onDeleteMessage={deleteMessage}
-            onPressImageMessage={onPressImageMessage}
             onPressMediaMessage={onPressMediaMessage}
             flatListProps={memoizedFlatListProps}
           />
-          {shouldRenderInput(channel) && (
-            <GroupChannelModule.Input
-              onSendFileMessage={onSendFileMessage}
-              onSendUserMessage={onSendUserMessage}
-              onUpdateFileMessage={onUpdateFileMessage}
-              onUpdateUserMessage={onUpdateUserMessage}
-            />
-          )}
+          <GroupChannelModule.Input
+            SuggestedMentionList={GroupChannelModule.SuggestedMentionList}
+            shouldRenderInput={shouldRenderInput(channel)}
+            onPressSendUserMessage={onPressSendUserMessage}
+            onPressSendFileMessage={onPressSendFileMessage}
+            onPressUpdateUserMessage={onPressUpdateUserMessage}
+            onPressUpdateFileMessage={onPressUpdateFileMessage}
+          />
         </StatusComposition>
       </GroupChannelModule.Provider>
     );

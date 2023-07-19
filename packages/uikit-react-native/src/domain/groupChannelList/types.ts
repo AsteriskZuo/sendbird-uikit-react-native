@@ -2,64 +2,36 @@ import type React from 'react';
 import type { FlatListProps } from 'react-native';
 
 import type { UseGroupChannelListOptions } from '@sendbird/uikit-chat-hooks';
-import type { ActionMenuItem, BaseHeaderProps } from '@sendbird/uikit-react-native-foundation';
+import type { ActionMenuItem } from '@sendbird/uikit-react-native-foundation';
 import type { SendbirdGroupChannel } from '@sendbird/uikit-utils';
 
 import type { CommonComponent } from '../../types';
 
 export interface GroupChannelListProps {
-  /** Props for `GroupChannelListFragment` **/
   Fragment: {
-    /** Navigate to GroupChannelFragment **/
-    onPressChannel: (channel: SendbirdGroupChannel) => void;
-    /** Navigate to GroupChannelCreateFragment **/
+    onPressChannel: GroupChannelListProps['List']['onPressChannel'];
     onPressCreateChannel: (channelType: GroupChannelType) => void;
-    /** Custom Header for TypeSelector, Only replace header component not a module **/
-    TypeSelectorHeader?: null | CommonComponent<
-      BaseHeaderProps<{ title: string; right: React.ReactElement; onPressRight: () => void }>
-    >;
-    /** Method to render GroupChannel preview **/
-    renderGroupChannelPreview?: (
-      channel: SendbirdGroupChannel,
-      onLongPressChannel: () => void,
-    ) => React.ReactElement | null;
-    /** Skip type selection, When this is set to true 'channelType' only receive 'GROUP' type **/
+    renderGroupChannelPreview?: GroupChannelListProps['List']['renderGroupChannelPreview'];
     skipTypeSelection?: boolean;
-    /** Custom Query creator for channels query **/
-    queryCreator?: UseGroupChannelListOptions['queryCreator'];
-    /** Custom Collection creator for group channel collection **/
     collectionCreator?: UseGroupChannelListOptions['collectionCreator'];
-    /** FlatList props for GroupChannelList.List **/
     flatListProps?: GroupChannelListProps['List']['flatListProps'];
-    /** Action menu item creator for onLongPress **/
     menuItemCreator?: GroupChannelListProps['List']['menuItemCreator'];
   };
-  /** Props for `GroupChannelListModule.Header` **/
   Header: {};
-  /** Props for `GroupChannelListModule.List` **/
   List: {
-    /** GroupChannels from SendbirdChat SDK **/
+    onPressChannel: (channel: SendbirdGroupChannel) => void;
     groupChannels: SendbirdGroupChannel[];
-    /** Method to render GroupChannel preview **/
-    renderGroupChannelPreview: (
-      // FIXME/BREAKING: Changed to props object
-      channel: SendbirdGroupChannel,
-      onLongPressChannel: () => void,
-    ) => React.ReactElement | null;
-    /** Method to load more data, called with onEndReached of FlatList **/
+    renderGroupChannelPreview: (props: {
+      channel: SendbirdGroupChannel;
+      onPress: () => void;
+      onLongPress: () => void;
+    }) => React.ReactElement | null;
     onLoadNext: () => Promise<void>;
-    /** Prop from Fragment **/
     flatListProps?: Omit<FlatListProps<SendbirdGroupChannel>, 'data' | 'renderItem'>;
-    /** Prop from Fragment **/
     menuItemCreator?: (defaultMenuItem: ActionMenuItem) => ActionMenuItem;
   };
-  /** Props for `GroupChannelListModule.TypeSelector` **/
   TypeSelector: {
-    /** Prop from Fragment `Fragment.TypeSelectorHeader` **/
-    Header: GroupChannelListProps['Fragment']['TypeSelectorHeader'];
-    /** Prop from Fragment `Fragment.skipTypeSelection` **/
     skipTypeSelection: boolean;
-    /** Method called when type is selected, call `Fragment.onPressCreateChannel` **/
     onSelectType: (type: GroupChannelType) => void;
   };
 }

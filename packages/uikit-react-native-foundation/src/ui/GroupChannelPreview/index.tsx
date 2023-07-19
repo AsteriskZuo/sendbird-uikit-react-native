@@ -29,6 +29,8 @@ type Props = {
   frozen?: boolean;
   notificationOff?: boolean;
   broadcast?: boolean;
+  mentioned?: boolean;
+  mentionTrigger?: string;
 };
 
 const GroupChannelPreview = ({
@@ -45,6 +47,8 @@ const GroupChannelPreview = ({
   frozen,
   notificationOff,
   broadcast,
+  mentioned,
+  mentionTrigger = '@',
 }: Props) => {
   const { colors } = useUIKitTheme();
   const color = colors.ui.groupChannelPreview;
@@ -110,12 +114,25 @@ const GroupChannelPreview = ({
                   ]}
                 />
               )}
-              <Text body3 numberOfLines={1} style={styles.bodyText} color={color.default.none.textBody}>
+              <Text
+                body3
+                numberOfLines={1}
+                ellipsizeMode={bodyIcon ? 'middle' : 'tail'}
+                style={styles.bodyText}
+                color={color.default.none.textBody}
+              >
                 {body}
               </Text>
             </View>
           </View>
-          <View>{badgeCount > 0 && <Badge count={badgeCount} maxCount={maxBadgeCount} />}</View>
+          <View style={styles.unreadContainer}>
+            {mentioned && (
+              <Text h2 color={colors.ui.badge.default.none.background} style={styles.unreadMention}>
+                {mentionTrigger}
+              </Text>
+            )}
+            {badgeCount > 0 && <Badge count={badgeCount} maxCount={maxBadgeCount} />}
+          </View>
         </View>
         <Separator color={color.default.none.separator} />
       </View>
@@ -204,12 +221,12 @@ const styles = createStyleSheet({
     height: 26,
     marginRight: 4,
   },
-  unreadBadge: {
-    minWidth: 20,
-    minHeight: 20,
-    borderRadius: 99,
-    alignItems: 'center',
-    justifyContent: 'center',
+  unreadContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  unreadMention: {
+    marginRight: 4,
   },
   separator: {
     position: 'absolute',

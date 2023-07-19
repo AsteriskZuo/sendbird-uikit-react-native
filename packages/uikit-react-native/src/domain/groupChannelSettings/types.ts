@@ -9,9 +9,11 @@ export interface GroupChannelSettingsProps {
   Fragment: {
     channel: GroupChannelSettingsProps['Provider']['channel'];
     onPressHeaderLeft: GroupChannelSettingsProps['Header']['onPressHeaderLeft'];
-    onPressMenuModerations: GroupChannelSettingsProps['Menu']['onPressMenuModerations'];
+    onPressMenuModeration: GroupChannelSettingsProps['Menu']['onPressMenuModeration'];
     onPressMenuMembers: GroupChannelSettingsProps['Menu']['onPressMenuMembers'];
+    onPressMenuSearchInChannel?: GroupChannelSettingsProps['Menu']['onPressMenuSearchInChannel'];
     onPressMenuLeaveChannel: GroupChannelSettingsProps['Menu']['onPressMenuLeaveChannel'];
+    onPressMenuNotification?: GroupChannelSettingsProps['Menu']['onPressMenuNotification'];
     menuItemsCreator?: GroupChannelSettingsProps['Menu']['menuItemsCreator'];
   };
   Header: {
@@ -19,9 +21,11 @@ export interface GroupChannelSettingsProps {
   };
   Info: {};
   Menu: {
-    onPressMenuModerations: () => void;
+    onPressMenuModeration: () => void;
     onPressMenuMembers: () => void;
+    onPressMenuSearchInChannel?: () => void;
     onPressMenuLeaveChannel: () => void;
+    onPressMenuNotification?: () => void;
     menuItemsCreator?: (defaultMenuItems: MenuBarProps[]) => MenuBarProps[];
   };
   Provider: {

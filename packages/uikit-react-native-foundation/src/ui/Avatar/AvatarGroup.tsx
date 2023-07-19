@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { ReactElement } from 'react';
 import { StyleProp, View, ViewStyle } from 'react-native';
 
 const MAX = 4;
@@ -27,13 +27,13 @@ const AvatarGroup = ({ children, containerStyle, size = 56 }: Props) => {
     );
   }
 
-  const avatars = useMemo(() => {
+  const renderAvatars = () => {
     return (
       React.Children.map(children, (child, index) => {
         if (index + 1 > MAX) return child;
         if (!React.isValidElement(child)) return child;
 
-        if (childAmount === 1) return React.cloneElement(child, { size, containerStyle });
+        if (childAmount === 1) return React.cloneElement(child as ReactElement, { size, containerStyle });
 
         const top = getTopPoint(index, childAmount) * size;
         const left = getLeftPoint(index) * size;
@@ -44,16 +44,20 @@ const AvatarGroup = ({ children, containerStyle, size = 56 }: Props) => {
 
         return (
           <View style={{ overflow: 'hidden', position: 'absolute', top, left, width, height }}>
-            {React.cloneElement(child, { size, square: true, containerStyle: { left: innerLeft, top: innerTop } })}
+            {React.cloneElement(child as ReactElement, {
+              size,
+              square: true,
+              containerStyle: { left: innerLeft, top: innerTop },
+            })}
           </View>
         );
       })?.slice(0, 4) ?? []
     );
-  }, [children]);
+  };
 
   return (
     <View style={[containerStyle, { overflow: 'hidden', width: size, height: size, borderRadius: size }]}>
-      {avatars}
+      {renderAvatars()}
     </View>
   );
 };
@@ -67,7 +71,7 @@ const getWidthPoint = (idx: number, total: number) => {
   return 0.5;
 };
 const getTopPoint = (idx: number, total: number) => {
-  if (total === 2) return -0.025;
+  if (total === 2) return 0;
   if (total === 3 && idx === 0) return -0.025;
   if (total === 3 && idx !== 0) return 0.525;
   if (idx === 0 || idx === 1) return -0.025;

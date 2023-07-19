@@ -1,6 +1,7 @@
 import type React from 'react';
 
-import type { SendbirdGroupChannel, SendbirdMember } from '@sendbird/uikit-utils';
+import type { UseUserListOptions } from '@sendbird/uikit-chat-hooks';
+import type { SendbirdGroupChannel, SendbirdUser } from '@sendbird/uikit-utils';
 
 import type { CommonComponent } from '../../types';
 
@@ -10,15 +11,23 @@ export type GroupChannelOperatorsProps = {
     onPressHeaderLeft: GroupChannelOperatorsProps['Header']['onPressHeaderLeft'];
     onPressHeaderRight: GroupChannelOperatorsProps['Header']['onPressHeaderRight'];
     renderUser?: GroupChannelOperatorsProps['List']['renderUser'];
+    queryCreator?: UseUserListOptions<SendbirdUser>['queryCreator'];
   };
   Header: {
     onPressHeaderLeft: () => void;
     onPressHeaderRight: () => void;
   };
   List: {
-    renderUser: (props: { user: SendbirdMember }) => React.ReactElement | null;
-    operators: SendbirdMember[];
+    operators: SendbirdUser[];
+    onLoadNext: () => void;
+    renderUser: (props: { user: SendbirdUser }) => React.ReactElement | null;
     ListEmptyComponent?: React.ReactElement;
+  };
+  StatusError: {
+    onPressRetry: () => void;
+  };
+  Provider: {
+    channel: SendbirdGroupChannel;
   };
 };
 
@@ -30,13 +39,16 @@ export type GroupChannelOperatorsProps = {
 export type GroupChannelOperatorsContextsType = {
   Fragment: React.Context<{
     headerTitle: string;
+    channel: SendbirdGroupChannel;
   }>;
 };
 export interface GroupChannelOperatorsModule {
-  Provider: CommonComponent;
+  Provider: CommonComponent<GroupChannelOperatorsProps['Provider']>;
   Header: CommonComponent<GroupChannelOperatorsProps['Header']>;
   List: CommonComponent<GroupChannelOperatorsProps['List']>;
   StatusEmpty: CommonComponent;
+  StatusLoading: CommonComponent;
+  StatusError: CommonComponent<GroupChannelOperatorsProps['StatusError']>;
 }
 
 export type GroupChannelOperatorsFragment = CommonComponent<GroupChannelOperatorsProps['Fragment']>;

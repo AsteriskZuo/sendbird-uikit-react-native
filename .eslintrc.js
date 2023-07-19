@@ -1,6 +1,7 @@
 module.exports = {
   'env': {
     'es2021': true,
+    'jest': true,
   },
   'extends': ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   'parser': '@typescript-eslint/parser',
@@ -17,7 +18,7 @@ module.exports = {
     'quotes': ['error', 'single', { avoidEscape: true }],
     'arrow-parens': ['error', 'always'],
     'eol-last': ['warn', 'always'],
-    'multiline-ternary': ['warn', 'always-multiline'],
+    'multiline-ternary': ['off', 'always-multiline'], // turn off due to conflicts with prettier in jsx
     'no-nested-ternary': 'error',
     'no-empty': ['error', { 'allowEmptyCatch': true }],
     'comma-dangle': ['warn', 'always-multiline'],

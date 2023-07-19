@@ -1,27 +1,38 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import React, { useCallback, useState } from 'react';
 
 import { useAppFeatures } from '@sendbird/uikit-chat-hooks';
+import { SBUConfig, useUIKitConfig } from '@sendbird/uikit-tools';
 import type {
   SendbirdChatSDK,
   SendbirdGroupChannel,
   SendbirdUser,
   SendbirdUserUpdateParams,
 } from '@sendbird/uikit-utils';
-import { confirmAndMarkAsDelivered, useForceUpdate } from '@sendbird/uikit-utils';
+import { confirmAndMarkAsDelivered, useAppState, useForceUpdate } from '@sendbird/uikit-utils';
 
+import type EmojiManager from '../libs/EmojiManager';
+import type ImageCompressionConfig from '../libs/ImageCompressionConfig';
+import type MentionManager from '../libs/MentionManager';
 import type { FileType } from '../platform/types';
 
-type Props = React.PropsWithChildren<{
-  sdkInstance: SendbirdChatSDK;
-
+export interface ChatRelatedFeaturesInUIKit {
   enableAutoPushTokenRegistration: boolean;
-  enableChannelListTypingIndicator: boolean;
-  enableChannelListMessageReceiptStatus: boolean;
-}>;
+  enableUseUserIdForNickname: boolean;
+  enableImageCompression: boolean;
+}
 
-type Context = {
+interface Props extends ChatRelatedFeaturesInUIKit, React.PropsWithChildren {
+  sdkInstance: SendbirdChatSDK;
+  emojiManager: EmojiManager;
+  mentionManager: MentionManager;
+  imageCompressionConfig: ImageCompressionConfig;
+}
+
+export type SendbirdChatContextType = {
   sdk: SendbirdChatSDK;
+  emojiManager: EmojiManager;
+  mentionManager: MentionManager;
+  imageCompressionConfig: ImageCompressionConfig;
   currentUser?: SendbirdUser;
   setCurrentUser: React.Dispatch<React.SetStateAction<SendbirdUser | undefined>>;
 
@@ -29,47 +40,82 @@ type Context = {
   updateCurrentUserInfo: (nickname?: string, profile?: string | FileType) => Promise<SendbirdUser>;
   markAsDeliveredWithChannel: (channel: SendbirdGroupChannel) => void;
 
-  features: {
-    // UIKit features
-    autoPushTokenRegistrationEnabled: boolean;
-    channelListTypingIndicatorEnabled: boolean;
-    channelListMessageReceiptStatusEnabled: boolean;
+  sbOptions: {
+    // UIKit options
+    uikit: SBUConfig;
+    uikitWithAppInfo: {
+      groupChannel: {
+        channel: {
+          enableReactions: boolean;
+          enableOgtag: boolean;
+        };
+        setting: {
+          enableMessageSearch: boolean;
+        };
+      };
+      openChannel: {
+        channel: {
+          enableOgtag: boolean;
+        };
+      };
+    };
 
-    // Sendbird application features
-    deliveryReceiptEnabled: boolean;
-    broadcastChannelEnabled: boolean;
-    superGroupChannelEnabled: boolean;
-    reactionEnabled: boolean;
+    // Chat related options in UIKit
+    chat: {
+      imageCompressionEnabled: boolean;
+      useUserIdForNicknameEnabled: boolean;
+      autoPushTokenRegistrationEnabled: boolean; // RN only
+    };
+
+    // Sendbird application options
+    appInfo: {
+      deliveryReceiptEnabled: boolean;
+      broadcastChannelEnabled: boolean;
+      superGroupChannelEnabled: boolean;
+      reactionEnabled: boolean;
+    };
   };
 };
 
-export const SendbirdChatContext = React.createContext<Context | null>(null);
+export const SendbirdChatContext = React.createContext<SendbirdChatContextType | null>(null);
 export const SendbirdChatProvider = ({
   children,
   sdkInstance,
+  emojiManager,
+  mentionManager,
+  imageCompressionConfig,
   enableAutoPushTokenRegistration,
-  enableChannelListMessageReceiptStatus,
-  enableChannelListTypingIndicator,
+  enableUseUserIdForNickname,
+  enableImageCompression,
 }: Props) => {
   const [currentUser, _setCurrentUser] = useState<SendbirdUser>();
   const forceUpdate = useForceUpdate();
   const appFeatures = useAppFeatures(sdkInstance);
+  const { configs, configsWithAppAttr } = useUIKitConfig();
 
-  const setCurrentUser: Context['setCurrentUser'] = useCallback((user) => {
+  const setCurrentUser: SendbirdChatContextType['setCurrentUser'] = useCallback((user) => {
     // NOTE: Sendbird SDK handle User object is always same object, so force update after setCurrentUser
     _setCurrentUser(user);
     forceUpdate();
   }, []);
 
-  const updateCurrentUserInfo: Context['updateCurrentUserInfo'] = useCallback(
+  const updateCurrentUserInfo: SendbirdChatContextType['updateCurrentUserInfo'] = useCallback(
     async (nickname, profile) => {
       let user = currentUser;
 
       if (!user) throw new Error('Current user is not defined, please connect using `useConnection()` hook first');
 
-      const params: SendbirdUserUpdateParams = { nickname };
+      const params: SendbirdUserUpdateParams = {};
 
-      if (typeof profile === 'string') {
+      if (!nickname) {
+        params.nickname = user.nickname;
+      } else {
+        params.nickname = nickname;
+      }
+
+      if (!profile) {
+        params.profileUrl = user.profileUrl;
+      } else if (typeof profile === 'string') {
         params.profileUrl = profile;
       } else if (typeof profile === 'object') {
         params.profileImage = profile;
@@ -85,37 +131,41 @@ export const SendbirdChatProvider = ({
     [sdkInstance, currentUser, setCurrentUser],
   );
 
-  const markAsDeliveredWithChannel: Context['markAsDeliveredWithChannel'] = useCallback(
+  const markAsDeliveredWithChannel: SendbirdChatContextType['markAsDeliveredWithChannel'] = useCallback(
     (channel: SendbirdGroupChannel) => {
-      if (appFeatures.deliveryReceiptEnabled) confirmAndMarkAsDelivered(sdkInstance, channel);
+      if (appFeatures.deliveryReceiptEnabled) confirmAndMarkAsDelivered([channel]);
     },
     [sdkInstance, appFeatures.deliveryReceiptEnabled],
   );
 
-  useEffect(() => {
-    const listener = (status: AppStateStatus) => {
-      // 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
-      if (status === 'active') sdkInstance.connectionState === 'CLOSED' && sdkInstance.setForegroundState();
-      else if (status === 'background') sdkInstance.connectionState === 'OPEN' && sdkInstance.setBackgroundState();
-    };
+  useAppState('change', (status) => {
+    // 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
+    if (status === 'active') sdkInstance.connectionState === 'CLOSED' && sdkInstance.setForegroundState();
+    else if (status === 'background') sdkInstance.connectionState === 'OPEN' && sdkInstance.setBackgroundState();
+  });
 
-    const subscriber = AppState.addEventListener('change', listener);
-    return () => subscriber.remove();
-  }, [sdkInstance]);
-
-  const value: Context = {
+  const value: SendbirdChatContextType = {
     sdk: sdkInstance,
+    emojiManager,
+    mentionManager,
+    imageCompressionConfig,
     currentUser,
     setCurrentUser,
 
     updateCurrentUserInfo,
     markAsDeliveredWithChannel,
 
-    features: {
-      ...appFeatures,
-      autoPushTokenRegistrationEnabled: enableAutoPushTokenRegistration,
-      channelListTypingIndicatorEnabled: enableChannelListTypingIndicator,
-      channelListMessageReceiptStatusEnabled: enableChannelListMessageReceiptStatus,
+    // TODO: Options should be moved to the common area at the higher level to be passed to the context of each product.
+    //  For example, common -> chat context, common -> calls context
+    sbOptions: {
+      appInfo: appFeatures,
+      uikit: configs,
+      uikitWithAppInfo: configsWithAppAttr(sdkInstance),
+      chat: {
+        autoPushTokenRegistrationEnabled: enableAutoPushTokenRegistration,
+        useUserIdForNicknameEnabled: enableUseUserIdForNickname,
+        imageCompressionEnabled: enableImageCompression,
+      },
     },
   };
 

@@ -5,6 +5,7 @@ import { SessionHandler } from '@sendbird/chat';
 import { useConnection, useSendbirdChat } from '@sendbird/uikit-react-native';
 import { Button, Text, TextInput, useUIKitTheme } from '@sendbird/uikit-react-native-foundation';
 
+import Versions from '../components/Versions';
 import { SendbirdAPI } from '../factory';
 import { useAppAuth } from '../libs/authentication';
 
@@ -32,7 +33,7 @@ const SignInScreen = () => {
     }
   };
 
-  const { loading, signIn } = useAppAuth((user) => connectWith(user.userId));
+  const { loading, signIn } = useAppAuth((user) => connectWith(user.userId, user.nickname));
   const { colors } = useUIKitTheme();
 
   if (loading) return null;
@@ -58,13 +59,15 @@ const SignInScreen = () => {
         variant={'contained'}
         onPress={async () => {
           if (userId) {
-            await signIn({ userId });
+            await signIn({ userId, nickname });
             await connectWith(userId, nickname);
           }
         }}
       >
         {'Sign in'}
       </Button>
+
+      <Versions style={{ marginTop: 12 }} />
     </View>
   );
 };

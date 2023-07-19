@@ -6,13 +6,12 @@ const AdvertiseMessage = (_:object) => <></>
  * Usage
  * {@link https://sendbird.com/docs/uikit/v3/react-native/key-functions/chatting-in-a-channel/chat-in-a-group-channel#2-usage}
  * */
-import { useState } from 'react';
 import { useSendbirdChat, createGroupChannelFragment } from "@sendbird/uikit-react-native";
 import { useGroupChannel } from "@sendbird/uikit-chat-hooks";
 
 const GroupChannelFragment = createGroupChannelFragment();
 
-const GroupChannelScreen = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelScreen = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -40,8 +39,8 @@ function _context(_: GroupChannelContextsType) {
   const fragment = useContext(_.Fragment);
   fragment.headerTitle;
   fragment.channel;
-  fragment.editMessage;
-  fragment.setEditMessage;
+  fragment.messageToEdit;
+  fragment.setMessageToEdit;
   fragment.keyboardAvoidOffset;
 
   const typing = useContext(_.TypingIndicator);
@@ -57,8 +56,8 @@ const Component = () => {
   const {
     headerTitle,
     channel,
-    editMessage,
-    setEditMessage,
+    messageToEdit,
+    setMessageToEdit,
     keyboardAvoidOffset,
   } = useContext(GroupChannelContexts.Fragment);
 };
@@ -83,7 +82,7 @@ import { Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 
-import { GroupChannelContexts, GroupChannelModule, MessageRenderer } from '@sendbird/uikit-react-native';
+import { GroupChannelContexts, GroupChannelModule, GroupChannelMessageRenderer } from '@sendbird/uikit-react-native';
 import { Icon } from '@sendbird/uikit-react-native-foundation';
 
 const UseReactNavigationHeader: GroupChannelModule['Header'] = ({ onPressHeaderRight, onPressHeaderLeft }) => {
@@ -113,7 +112,7 @@ const UseReactNavigationHeader: GroupChannelModule['Header'] = ({ onPressHeaderR
 const GroupChannelFragment2 = createGroupChannelFragment({
   Header: UseReactNavigationHeader, // Hide header and use react-navigation header
 });
-const GroupChannelScreen2 = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelScreen2 = ({ route: { params } }: any) => {
   const height = useHeaderHeight();
 
   const { sdk } = useSendbirdChat();
@@ -136,7 +135,7 @@ const GroupChannelScreen2 = ({ params }: { params: { channelUrl: string } }) => 
         if(props.message.customType === 'Advertise') {
           return <AdvertiseMessage {...props} />
         }
-        return <MessageRenderer {...props} />
+        return <GroupChannelMessageRenderer {...props} />
       }}
     />
   );

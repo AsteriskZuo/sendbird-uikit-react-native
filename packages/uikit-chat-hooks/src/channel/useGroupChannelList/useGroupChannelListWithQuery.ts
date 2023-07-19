@@ -2,14 +2,12 @@ import { useRef } from 'react';
 
 import { GroupChannelListOrder } from '@sendbird/chat/groupChannel';
 import type { SendbirdChannel, SendbirdChatSDK, SendbirdGroupChannelListQuery } from '@sendbird/uikit-utils';
-import { confirmAndMarkAsDelivered, useAsyncEffect, useFreshCallback } from '@sendbird/uikit-utils';
+import { confirmAndMarkAsDelivered, useAsyncEffect, useFreshCallback, useUniqHandlerId } from '@sendbird/uikit-utils';
 
 import { useAppFeatures } from '../../common/useAppFeatures';
 import { useChannelHandler } from '../../handler/useChannelHandler';
 import type { UseGroupChannelList, UseGroupChannelListOptions } from '../../types';
 import { useGroupChannelListReducer } from './reducer';
-
-const HOOK_NAME = 'useGroupChannelListWithQuery';
 
 const createGroupChannelListQuery = (
   sdk: SendbirdChatSDK,
@@ -28,13 +26,14 @@ const createGroupChannelListQuery = (
 export const useGroupChannelListWithQuery: UseGroupChannelList = (sdk, userId, options) => {
   const { deliveryReceiptEnabled } = useAppFeatures(sdk);
   const queryRef = useRef<SendbirdGroupChannelListQuery>();
+  const handlerId = useUniqHandlerId('useGroupChannelListWithQuery');
 
   const {
     loading,
     groupChannels,
     refreshing,
     updateChannels,
-    setChannels,
+    appendChannels,
     deleteChannels,
     updateRefreshing,
     updateLoading,
@@ -43,7 +42,7 @@ export const useGroupChannelListWithQuery: UseGroupChannelList = (sdk, userId, o
 
   const updateChannelsAndMarkAsDelivered = (channels: SendbirdChannel[]) => {
     updateChannels(channels);
-    if (deliveryReceiptEnabled) channels.forEach((channel) => confirmAndMarkAsDelivered(sdk, channel));
+    if (deliveryReceiptEnabled) confirmAndMarkAsDelivered(channels);
   };
 
   const init = useFreshCallback(async (uid?: string) => {
@@ -54,8 +53,8 @@ export const useGroupChannelListWithQuery: UseGroupChannelList = (sdk, userId, o
       if (queryRef.current?.hasNext) {
         const channels = await queryRef.current.next();
 
-        setChannels(channels, true);
-        if (deliveryReceiptEnabled) channels.forEach((channel) => confirmAndMarkAsDelivered(sdk, channel));
+        appendChannels(channels, true);
+        if (deliveryReceiptEnabled) confirmAndMarkAsDelivered(channels);
       }
     }
   });
@@ -64,24 +63,27 @@ export const useGroupChannelListWithQuery: UseGroupChannelList = (sdk, userId, o
     updateLoading(true);
     await init(userId);
     updateLoading(false);
-  }, [init, userId]);
+  }, [userId]);
 
-  useChannelHandler(sdk, HOOK_NAME, {
-    onChannelChanged: (channel) => updateChannelsAndMarkAsDelivered([channel]),
+  useChannelHandler(sdk, handlerId, {
+    onChannelChanged: (channel) => updateChannels([channel]),
     onChannelFrozen: (channel) => updateChannels([channel]),
     onChannelUnfrozen: (channel) => updateChannels([channel]),
     onChannelMemberCountChanged: (channels) => updateChannels(channels),
     onChannelDeleted: (url) => deleteChannels([url]),
-    onUserJoined: (channel) => updateChannelsAndMarkAsDelivered([channel]),
+    onUserJoined: (channel) => updateChannels([channel]),
     onUserLeft: (channel, user) => {
       const isMe = user.userId === userId;
       if (isMe) deleteChannels([channel.url]);
-      else updateChannelsAndMarkAsDelivered([channel]);
+      else updateChannels([channel]);
     },
     onUserBanned(channel, user) {
       const isMe = user.userId === userId;
       if (isMe) deleteChannels([channel.url]);
-      else updateChannelsAndMarkAsDelivered([channel]);
+      else updateChannels([channel]);
+    },
+    onMessageReceived(channel) {
+      updateChannelsAndMarkAsDelivered([channel]);
     },
   });
 
@@ -94,8 +96,8 @@ export const useGroupChannelListWithQuery: UseGroupChannelList = (sdk, userId, o
   const next = useFreshCallback(async () => {
     if (queryRef.current?.hasNext) {
       const channels = await queryRef.current.next();
-      setChannels(channels, false);
-      if (deliveryReceiptEnabled) channels.forEach((channel) => confirmAndMarkAsDelivered(sdk, channel));
+      appendChannels(channels, false);
+      if (deliveryReceiptEnabled) confirmAndMarkAsDelivered(channels);
     }
   });
 

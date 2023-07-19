@@ -11,7 +11,7 @@ const isImageFile = (x: string) => x;
  * Customize the UI for file sharing
  * {@link https://sendbird.com/docs/uikit/v3/react-native/features/file-sharing#2-customize-the-ui-for-file-sharing}
  * */
-import { createGroupChannelFragment, MessageRenderer } from '@sendbird/uikit-react-native';
+import { createGroupChannelFragment, GroupChannelMessageRenderer } from '@sendbird/uikit-react-native';
 
 const GroupChannelFragment = createGroupChannelFragment();
 
@@ -23,7 +23,7 @@ const GroupChannelScreen = () => {
         if (props.message.isFileMessage()) {
           return <CustomFileMessage {...props} />;
         }
-        return <MessageRenderer {...props} />;
+        return <GroupChannelMessageRenderer {...props} />;
       }}
     />
   );
@@ -35,16 +35,16 @@ const GroupChannelScreen = () => {
  * {@link https://sendbird.com/docs/uikit/v3/react-native/features/file-sharing#2-customize-the-ui-for-file-sharing-3-color-resource}
  * */
 function _colorResource(colors: UIKitColors) {
-  colors.ui.message;
-  colors.ui.message.incoming;
-  colors.ui.message.outgoing;
-  colors.ui.message.incoming.pressed;
-  colors.ui.message.incoming.enabled;
-  colors.ui.message.incoming.pressed.textEdited;
-  colors.ui.message.incoming.pressed.textMsg;
-  colors.ui.message.incoming.pressed.textSenderName;
-  colors.ui.message.incoming.pressed.textTime;
-  colors.ui.message.incoming.pressed.background;
+  colors.ui.groupChannelMessage;
+  colors.ui.groupChannelMessage.incoming;
+  colors.ui.groupChannelMessage.outgoing;
+  colors.ui.groupChannelMessage.incoming.pressed;
+  colors.ui.groupChannelMessage.incoming.enabled;
+  colors.ui.groupChannelMessage.incoming.pressed.textEdited;
+  colors.ui.groupChannelMessage.incoming.pressed.textMsg;
+  colors.ui.groupChannelMessage.incoming.pressed.textSenderName;
+  colors.ui.groupChannelMessage.incoming.pressed.textTime;
+  colors.ui.groupChannelMessage.incoming.pressed.background;
 }
 /** ------------------ **/
 
@@ -66,11 +66,12 @@ Icon.Assets['play'] = require('your_icons/play_icon.png');
 function _stringResource(str: StringSet) {
   str.GROUP_CHANNEL;
   str.GROUP_CHANNEL.MESSAGE_BUBBLE_FILE_TITLE;
-  str.GROUP_CHANNEL.DIALOG_ATTACHMENT_CAMERA;
-  str.GROUP_CHANNEL.DIALOG_ATTACHMENT_PHOTO_LIBRARY;
-  str.GROUP_CHANNEL.DIALOG_ATTACHMENT_FILES;
 
-  str.TOAST;
+  str.LABELS.CHANNEL_INPUT_ATTACHMENT_CAMERA_PHOTO;
+  str.LABELS.CHANNEL_INPUT_ATTACHMENT_CAMERA_VIDEO;
+  str.LABELS.CHANNEL_INPUT_ATTACHMENT_PHOTO_LIBRARY;
+  str.LABELS.CHANNEL_INPUT_ATTACHMENT_FILES;
+
   str.TOAST.OPEN_CAMERA_ERROR;
   str.TOAST.OPEN_PHOTO_LIBRARY_ERROR;
   str.TOAST.OPEN_FILES_ERROR;
@@ -84,22 +85,22 @@ function _stringResource(str: StringSet) {
  * Image compression
  * {@link https://sendbird.com/docs/uikit/v3/react-native/features/file-sharing#2-image-compression}
  * */
-// @ts-ignore
-import ImageResizer from 'react-native-image-resizer';
+import { SendbirdUIKitContainer } from '@sendbird/uikit-react-native';
 
-const GroupChannelScreen2 = () => {
+const App = () => {
   return (
-    // @ts-ignore
-    <GroupChannelFragment
-      onBeforeSendFileMessage={async (params) => {
-        if (params.file && 'uri' in params.file) {
-          if (isImageFile(params.file.name)) {
-            const { uri, size } = await ImageResizer.createResizedImage(params.file.uri);
-            params.file = { ...params.file, uri, size };
-          }
-        }
-
-        return params;
+    <SendbirdUIKitContainer
+      appId={'APP_ID'}
+      // @ts-ignore
+      platformServices={{}}
+      // @ts-ignore
+      chatOptions={{
+        enableImageCompression: true
+      }}
+      imageCompression={{
+        compressionRate: 0.5,
+        width: 600,
+        height: 600
       }}
     />
   );

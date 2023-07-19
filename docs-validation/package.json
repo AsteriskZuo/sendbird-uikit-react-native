@@ -1,24 +1,26 @@
 {
   "name": "@sendbird/docs-validation",
-  "version": "2.0.0",
+  "version": "3.0.4",
   "private": true,
   "scripts": {
     "test": "tsc --project tsconfig.build.json",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "clean": "del lib"
   },
   "dependencies": {
+    "@bam.tech/react-native-image-resizer": "^3.0.4",
     "@react-native-async-storage/async-storage": "^1.15.17",
-    "@react-native-camera-roll/camera-roll": "^5.0.4",
+    "@react-native-camera-roll/camera-roll": "^5.4.0",
     "@react-native-clipboard/clipboard": "^1.8.5",
     "@react-native-firebase/messaging": "^14.7.0",
     "@react-navigation/native": "^6.0.6",
     "@react-navigation/native-stack": "^6.7.0",
-    "@sendbird/chat": "^4.0.13",
+    "@sendbird/chat": "^4.9.2",
     "react": "17.0.2",
-    "react-native": "0.67.4",
+    "react-native": "0.67.5",
     "react-native-create-thumbnail": "^1.5.1",
     "react-native-document-picker": "^8.0.0",
-    "react-native-file-access": "^2.4.3",
+    "react-native-file-access": "^2.5.0",
     "react-native-image-picker": "^4.7.3",
     "react-native-permissions": "^3.6.0",
     "react-native-safe-area-context": "^3.3.2",
@@ -42,6 +44,6 @@
     "react-dom": "17.0.2",
     "react-native-monorepo-tools": "^1.1.4",
     "react-test-renderer": "17.0.2",
-    "typescript": "^4.4.4"
+    "typescript": "4.9.4"
   }
 }

@@ -17,7 +17,7 @@ import {
   isDifferentChannel,
   isMyMessage,
   useIIFE,
-  useUniqId,
+  useUniqHandlerId,
 } from '@sendbird/uikit-utils';
 
 import ChannelCover from '../components/ChannelCover';
@@ -32,21 +32,20 @@ type Props = {
   onLongPress: () => void;
 };
 const GroupChannelPreviewContainer = ({ onPress, onLongPress, channel }: Props) => {
-  const { currentUser, sdk, features } = useSendbirdChat();
+  const { currentUser, sdk, sbOptions, mentionManager } = useSendbirdChat();
   const { STRINGS } = useLocalization();
   const { colors } = useUIKitTheme();
 
   const [typingUsers, setTypingUsers] = useState<SendbirdUser[]>([]);
 
-  if (features.channelListTypingIndicatorEnabled) {
-    const typingId = useUniqId('GroupChannelPreviewContainer');
-    useChannelHandler(sdk, `GroupChannelPreviewContainer_TypingIndicator_${typingId}`, {
-      onTypingStatusUpdated(eventChannel) {
-        if (isDifferentChannel(channel, eventChannel)) return;
-        setTypingUsers(eventChannel.getTypingUsers());
-      },
-    });
-  }
+  const handlerId = useUniqHandlerId('GroupChannelPreviewContainer_TypingIndicator');
+  useChannelHandler(sdk, handlerId, {
+    onTypingStatusUpdated(eventChannel) {
+      if (isDifferentChannel(channel, eventChannel)) return;
+      if (!sbOptions.uikit.groupChannel.channelList.enableTypingIndicator) return;
+      setTypingUsers(eventChannel.getTypingUsers());
+    },
+  });
 
   const outgoingStatus = useMessageOutgoingStatus(sdk, channel, channel.lastMessage);
 
@@ -55,15 +54,15 @@ const GroupChannelPreviewContainer = ({ onPress, onLongPress, channel }: Props) 
     else return STRINGS.GROUP_CHANNEL_LIST.CHANNEL_PREVIEW_BODY(channel);
   });
 
-  const bodyIcon = useIIFE(() => {
+  const fileIcon = useIIFE(() => {
     if (!channel.lastMessage?.isFileMessage()) return undefined;
     if (typingUsers.length > 0) return undefined;
     return iconMapper[getFileType(channel.lastMessage.type || getFileExtension(channel.lastMessage.name))];
   });
 
   const titleCaptionIcon = useIIFE(() => {
-    if (!channel.lastMessage) return undefined;
-    if (!features.channelListMessageReceiptStatusEnabled) return undefined;
+    if (!channel.lastMessage || channel.isEphemeral) return undefined;
+    if (!sbOptions.uikit.groupChannel.channelList.enableMessageReceiptStatus) return undefined;
     if (!isMyMessage(channel.lastMessage, currentUser?.userId)) return undefined;
 
     if (outgoingStatus === 'PENDING') {
@@ -89,31 +88,21 @@ const GroupChannelPreviewContainer = ({ onPress, onLongPress, channel }: Props) 
     return undefined;
   });
 
-  const customCover = useIIFE(() => {
-    if (channel.isBroadcast) {
-      return (
-        <Icon
-          icon={'broadcast'}
-          size={32}
-          color={colors.onBackgroundReverse01}
-          containerStyle={[styles.broadcastCover, { backgroundColor: colors.secondary }]}
-        />
-      );
-    }
-    return <ChannelCover channel={channel} size={56} />;
-  });
+  const unreadMessageCount = useIIFE(() => (channel.isEphemeral ? 0 : channel.unreadMessageCount));
 
   return (
     <Pressable delayLongPress={DEFAULT_LONG_PRESS_DELAY} onPress={onPress} onLongPress={onLongPress}>
       <GroupChannelPreview
-        customCover={customCover}
+        customCover={<ChannelCover channel={channel} size={56} />}
         coverUrl={channel.coverUrl}
         title={STRINGS.GROUP_CHANNEL_LIST.CHANNEL_PREVIEW_TITLE(currentUser?.userId ?? '', channel)}
         titleCaptionLeft={titleCaptionIcon}
         titleCaption={STRINGS.GROUP_CHANNEL_LIST.CHANNEL_PREVIEW_TITLE_CAPTION(channel)}
         body={bodyText}
-        bodyIcon={bodyIcon}
-        badgeCount={channel.unreadMessageCount}
+        bodyIcon={fileIcon}
+        badgeCount={unreadMessageCount}
+        mentioned={channel.unreadMentionCount > 0}
+        mentionTrigger={mentionManager.config.trigger}
         memberCount={channel.memberCount > 2 ? channel.memberCount : undefined}
         frozen={channel.isFrozen}
         broadcast={channel.isBroadcast}

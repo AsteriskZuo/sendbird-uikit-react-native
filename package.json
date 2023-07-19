@@ -6,17 +6,9 @@
       "packages/*",
       "sample",
       "docs-validation"
-    ],
-    "nohoist": [
-      "**/react",
-      "**/react-dom",
-      "**/react-native",
-      "**/react-native/**",
-      "**/react-native-dev-menu",
-      "**/react-native-codegen",
-      "**/@react-native-firebase/**"
     ]
   },
+  "packageManager": "yarn@1.22.19",
   "scripts": {
     "postinstall": "patch-package",
     "prepare": "lerna run --stream --sort prepare",
@@ -24,7 +16,7 @@
     "reset": "find . -type dir -name node_modules | xargs rm -rf",
     "clean": "lerna run clean",
     "build": "lerna run build",
-    "docs": "yarn build && typedoc --out docs --entryPointStrategy packages 'packages/*' && yarn clean",
+    "docs": "yarn build && typedoc --out docs --entryPointStrategy packages 'packages/*' --exclude 'packages/uikit-testing-tools' && yarn clean",
     "test": "jest --verbose",
     "test:build": "yarn build --stream && yarn clean --stream",
     "test:docs-validation": "yarn build && yarn workspace @sendbird/docs-validation run test && yarn clean",
@@ -34,44 +26,47 @@
     "lint:prettier": "prettier --check \"sample/src/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
     "fix:eslint": "eslint --fix packages/*/src --ext ts,tsx -c ./.eslintrc.js",
     "fix:prettier": "prettier --write \"sample/src/**/*.{ts,tsx}\" \"packages/*/src/**/*.{ts,tsx}\"",
-    "sample:pod-install": "cd sample/ios && pod install",
-    "sample:ios": "cd sample && yarn ios",
-    "sample:android": "cd sample && yarn android",
+    "sample:pod-install": "cd sample; npx pod-install",
+    "sample:ios": "cd sample; yarn ios",
+    "sample:android": "cd sample; yarn android",
     "deploy:ios": "cd sample/ios && bundle exec fastlane deploy",
     "deploy:android": "cd sample/android && bundle exec fastlane deploy",
     "bump:major": "lerna version major --no-git-tag-version",
     "bump:minor": "lerna version minor --no-git-tag-version",
     "bump:patch": "lerna version patch --no-git-tag-version",
-    "deploy:npm": "lerna publish from-git"
+    "deploy:npm": "lerna publish from-git",
+    "make:feat": "yarn workspace @sendbird/uikit-react-native create-domain"
   },
   "devDependencies": {
-    "@testing-library/react-native": "^9.0.0",
-    "@trivago/prettier-plugin-sort-imports": "^3.1.1",
-    "@types/jest": "^27.4.0",
+    "@testing-library/react-native": "11",
+    "@trivago/prettier-plugin-sort-imports": "^3.4.0",
+    "@types/jest": "^29.4.0",
     "@typescript-eslint/eslint-plugin": "^5.9.1",
     "@typescript-eslint/parser": "^5.9.1",
-    "babel-jest": "^27.4.6",
+    "babel-jest": "^29.4.3",
     "chalk": "^4",
+    "concurrently": "^8.0.1",
     "conventional-changelog-conventionalcommits": "^5.0.0",
     "del-cli": "^4.0.1",
     "eslint": "^8.6.0",
     "eslint-config-prettier": "^8.5.0",
-    "jest": "^27.4.7",
+    "jest": "^29.4.3",
     "lerna": "^5.1.6",
+    "node-fetch": "2.x",
     "patch-package": "^6.4.7",
     "postinstall-postinstall": "^2.1.0",
-    "prettier": "^2.5.1",
+    "prettier": "^2.7.1",
     "react": "17.0.2",
-    "react-native": "0.67.4",
+    "react-native": "0.67.5",
     "react-native-builder-bob": "^0.18.2",
     "react-native-fast-image": "^8.5.11",
     "react-native-safe-area-context": "^3.3.2",
     "react-test-renderer": "^17.0.2",
     "typedoc": "^0.23.7",
-    "typescript": "^4.5.4"
+    "typescript": "4.9.4"
   },
   "jest": {
-    "testEnvironment": "node",
+    "preset": "react-native",
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -79,13 +74,28 @@
       "jsx",
       "json"
     ],
+    "setupFiles": [
+      "<rootDir>/node_modules/react-native/jest/setup.js",
+      "<rootDir>/jest.setup.js"
+    ],
+    "testRegex": "/__tests__/.*\\.(test|spec)\\.(js|tsx?)$",
+    "transformIgnorePatterns": [
+      "node_modules/(?!(jest-)?@?react-native|@testing-library|@react-navigation|@sendbird/chat)"
+    ],
     "testPathIgnorePatterns": [
       "/node_modules/"
     ],
-    "testRegex": "/__tests__/.*\\.(test|spec)\\.(js|tsx?)$",
     "moduleNameMapper": {
-      "@sendbird/([^/]+)": "<rootDir>/packages/$1/src"
+      "@sendbird/uikit-([^/]+)": "<rootDir>/packages/uikit-$1/src"
     },
-    "preset": "react-native"
+    "collectCoverageFrom": [
+      "**/packages/*/src/**",
+      "!packages/uikit-testing-tools/**",
+      "!**/__mocks__/**",
+      "!**/__fixtures__/**"
+    ]
+  },
+  "resolutions": {
+    "@sendbird/chat": "4.9.2"
   }
 }

@@ -1,15 +1,16 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { FlatList, ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PushTriggerOption } from '@sendbird/chat';
 import { useActionMenu, useToast } from '@sendbird/uikit-react-native-foundation';
-import { PASS, SendbirdGroupChannel, useFreshCallback } from '@sendbird/uikit-utils';
+import { NOOP, PASS, SendbirdGroupChannel, getChannelUniqId, useFreshCallback } from '@sendbird/uikit-utils';
 
 import { useLocalization, useSendbirdChat } from '../../../hooks/useContext';
 import type { GroupChannelListProps } from '../types';
 
 const GroupChannelListList = ({
+  onPressChannel,
   renderGroupChannelPreview,
   groupChannels,
   onLoadNext,
@@ -45,7 +46,7 @@ const GroupChannelListList = ({
         {
           title: STRINGS.GROUP_CHANNEL_LIST.DIALOG_CHANNEL_LEAVE,
           onPress: async () => {
-            channel.leave().then(() => sdk.clearCachedMessages([channel.url]).catch());
+            channel.leave().then(() => sdk.clearCachedMessages([channel.url]).catch(NOOP));
           },
           onError: () => toast.show(STRINGS.TOAST.LEAVE_CHANNEL_ERROR, 'error'),
         },
@@ -55,9 +56,12 @@ const GroupChannelListList = ({
     openMenu(menuItem);
   });
 
-  const renderItem: ListRenderItem<SendbirdGroupChannel> = useCallback(
-    ({ item }) => renderGroupChannelPreview?.(item, () => onLongPress(item)),
-    [renderGroupChannelPreview, onLongPress],
+  const renderItem: ListRenderItem<SendbirdGroupChannel> = useFreshCallback(({ item }) =>
+    renderGroupChannelPreview?.({
+      channel: item,
+      onPress: () => onPressChannel(item),
+      onLongPress: () => onLongPress(item),
+    }),
   );
 
   const { left, right } = useSafeAreaInsets();
@@ -69,6 +73,7 @@ const GroupChannelListList = ({
       onEndReached={onLoadNext}
       {...flatListProps}
       contentContainerStyle={[flatListProps?.contentContainerStyle, { paddingLeft: left, paddingRight: right }]}
+      keyExtractor={getChannelUniqId}
     />
   );
 };

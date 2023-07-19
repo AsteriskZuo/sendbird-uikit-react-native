@@ -6,11 +6,18 @@ import type * as ImagePicker from 'react-native-image-picker';
 import type * as Permissions from 'react-native-permissions';
 import type { Permission } from 'react-native-permissions';
 
-import { getFileExtension, getFileType, normalizeFileName } from '@sendbird/uikit-utils';
+import {
+  Logger,
+  getFileExtension,
+  getFileExtensionFromMime,
+  getFileExtensionFromUri,
+  getFileType,
+  normalizeFileName,
+} from '@sendbird/uikit-utils';
 
 import SBUError from '../libs/SBUError';
-import fileTypeGuard from '../utils/fileTypeGuard';
 import nativePermissionGranted from '../utils/nativePermissionGranted';
+import normalizeFile from '../utils/normalizeFile';
 import type {
   FilePickerResponse,
   FileServiceInterface,
@@ -76,6 +83,14 @@ const createNativeFileService = ({
     }
     async hasMediaLibraryPermission(): Promise<boolean> {
       const status = await permissionModule.checkMultiple(mediaLibraryPermissions);
+      if (
+        __DEV__ &&
+        Platform.OS === 'ios' &&
+        status['ios.permission.MEDIA_LIBRARY'] === 'unavailable' &&
+        status['ios.permission.PHOTO_LIBRARY'] === 'granted'
+      ) {
+        return true;
+      }
       return nativePermissionGranted(status);
     }
     async requestMediaLibraryPermission(): Promise<boolean> {
@@ -116,7 +131,7 @@ const createNativeFileService = ({
       }
 
       const { fileName: name, fileSize: size, type, uri } = response.assets?.[0] ?? {};
-      return fileTypeGuard({ uri, size, name, type });
+      return normalizeFile({ uri, size, name, type });
     }
     async openMediaLibrary(options?: OpenMediaLibraryOptions): Promise<FilePickerResponse[] | null> {
       /**
@@ -155,14 +170,16 @@ const createNativeFileService = ({
         return null;
       }
 
-      return (response.assets || [])
-        .slice(0, selectionLimit)
-        .map(({ fileName: name, fileSize: size, type, uri }) => fileTypeGuard({ uri, size, name, type }));
+      return Promise.all(
+        (response.assets || [])
+          .slice(0, selectionLimit)
+          .map(({ fileName: name, fileSize: size, type, uri }) => normalizeFile({ uri, size, name, type })),
+      );
     }
     async openDocument(options?: OpenDocumentOptions): Promise<FilePickerResponse> {
       try {
         const { uri, size, name, type } = await documentPickerModule.pickSingle();
-        return fileTypeGuard({ uri, size, name, type });
+        return normalizeFile({ uri, size, name, type });
       } catch (e) {
         if (!documentPickerModule.isCancel(e) && documentPickerModule.isInProgress(e)) {
           options?.onOpenFailure?.(SBUError.UNKNOWN, e);
@@ -177,33 +194,53 @@ const createNativeFileService = ({
         if (!granted) throw new Error('Permission not granted');
       }
 
-      const basePath = Platform.select({ android: fsModule.Dirs.CacheDir, default: fsModule.Dirs.DocumentDir });
-      let downloadPath = `${basePath}/${options.fileName}`;
-      if (!getFileExtension(options.fileName)) {
-        const extensionFromUrl = getFileExtension(options.fileUrl);
-        if (getFileType(extensionFromUrl).match(/image|video/)) {
-          downloadPath += extensionFromUrl;
+      const { downloadedPath, file } = await this.downloadFile(options);
+
+      if (Platform.OS === 'ios') {
+        if (file.type === 'image' || file.type === 'video') {
+          const mediaTypeMap = { 'image': 'photo', 'video': 'video' } as const;
+          const mediaType = mediaTypeMap[file.type];
+          await mediaLibraryModule.save(downloadedPath, { type: mediaType });
         }
       }
 
-      await fsModule.FileSystem.fetch(options.fileUrl, { path: downloadPath });
-      const fileType = getFileType(getFileExtension(options.fileUrl));
-
-      if (Platform.OS === 'ios' && (fileType === 'image' || fileType === 'video')) {
-        const type = ({ 'image': 'photo', 'video': 'video' } as const)[fileType];
-        await mediaLibraryModule.save(downloadPath, { type });
-      }
-
       if (Platform.OS === 'android') {
-        const dirType = { 'file': 'downloads', 'audio': 'audio', 'image': 'images', 'video': 'video' } as const;
-        await fsModule.FileSystem.cpExternal(
-          downloadPath,
-          normalizeFileName(options.fileName, getFileExtension(options.fileUrl)),
-          dirType[fileType],
-        );
+        const externalDirMap = { 'file': 'downloads', 'audio': 'audio', 'image': 'images', 'video': 'video' } as const;
+        const externalDir = externalDirMap[file.type];
+        await fsModule.FileSystem.cpExternal(downloadedPath, file.name, externalDir).catch(() => {
+          Logger.error('Failed to save file to external storage. Retry saving to downloads directory instead.');
+          return fsModule.FileSystem.cpExternal(downloadedPath, file.name, 'downloads');
+        });
       }
-      return downloadPath;
+
+      return downloadedPath;
     }
+
+    private buildDownloadPath = async (options: SaveOptions) => {
+      const dirname = Platform.select({ android: fsModule.Dirs.CacheDir, default: fsModule.Dirs.DocumentDir });
+      const context = { dirname, filename: options.fileName };
+      const extension =
+        getFileExtension(options.fileName) ||
+        getFileExtensionFromMime(options.fileType) ||
+        getFileExtension(options.fileUrl) ||
+        (await getFileExtensionFromUri(options.fileUrl));
+
+      if (extension) context.filename = normalizeFileName(context.filename, extension);
+
+      return { path: `${context.dirname}/${context.filename}`, ...context };
+    };
+
+    private downloadFile = async (options: SaveOptions) => {
+      const { path, filename } = await this.buildDownloadPath(options);
+      await fsModule.FileSystem.fetch(options.fileUrl, { path });
+      return {
+        downloadedPath: path,
+        file: {
+          name: filename,
+          type: getFileType(getFileExtension(path)),
+        } as const,
+      };
+    };
   }
 
   return new NativeFileService();

@@ -15,7 +15,7 @@ import { useSendbirdChat, createGroupChannelMembersFragment } from '@sendbird/ui
 import { useGroupChannel } from "@sendbird/uikit-chat-hooks";
 
 const GroupChannelMembersFragment = createGroupChannelMembersFragment();
-const GroupChannelMembersScreen = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelMembersScreen = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -81,7 +81,7 @@ const Component2 = () => {
 // import { useBottomSheet } from '@sendbird/uikit-react-native-foundation';
 
 const GroupChannelMembersFragment2 = createGroupChannelMembersFragment();
-const GroupChannelMembersScreen2 = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelMembersScreen2 = ({ route: { params } }: any) => {
   const { openSheet } = useBottomSheet();
 
   const { sdk } = useSendbirdChat();

@@ -32,7 +32,8 @@ If you need any help in resolving any issues or have questions, visit [our commu
 - XCode
 - Android Studio
 
-More details, please see https://reactnative.dev/docs/environment-setup
+⚑ More details, please see https://reactnative.dev/docs/environment-setup <br/>
+⚑ _we strongly recommend installing yarn using [corepack](https://nodejs.org/dist/latest/docs/api/corepack.html)_
 
 <br/>
 
@@ -82,6 +83,18 @@ If you would like to try the sample app specifically fit to your usage, you can 
 
 <br />
 
+> **Note** Update Chat SDK version of sample app <br/>
+> Edit `package.json` and change the version of `resolutions > @sendbird/chat` to the version you want to use.
+
+### Trouble shooting
+
+- Could not connect to development server on Android device
+  - Run `adb reverse tcp:8081 tcp:8081`.
+- Unable to resolve module `../version` from `packages/uikit-react-native/src/containers/SendbirdUIKitContainer.tsx`
+  - Run `yarn workspace @sendbird/uikit-react-native generate-version` on the root of the project.
+- `concurrently 'yarn start' 'react-native run-android'` does not working expected
+  - Run `yarn start` and `npx react-native run-android` separately on the `sample` directory.
+
 ## Development
 
 We tried development on macOS / Linux systems. You might encounter problems in running sample or scripts like `yarn build` in Windows machines.
@@ -99,6 +112,13 @@ yarn workspace @sendbird/uikit-react-native run create-domain
 > **Note**
 > We are using [yarn workspaces](https://classic.yarnpkg.com/en/docs/workspaces) and [lerna](https://github.com/lerna/lerna) to maintain this monorepo
 
+#### Patch package
+
+If you need to patch some packages for the sample to work using `patch-package`
+
+1. `npx patch-package package-name` > mark as comment `yarn-path` in `.yarnrc` file
+2. OR `./node_modules/.bin/patch-package package-name` > just run
+
 #### Package dependencies
 
 See [yarn workspace](https://classic.yarnpkg.com/en/docs/cli/workspace)
@@ -110,7 +130,7 @@ yarn workspace @sendbird/package add package-name
 yarn workspace @sendbird/package remove package-name
 
 # Add dependency to root
-yarn workspace -W add package-name
+yarn -W add package-name
 ```
 
 > **Warning** You should better install to root if you're trying to install native view modules.

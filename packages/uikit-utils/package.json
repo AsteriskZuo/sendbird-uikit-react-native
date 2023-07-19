@@ -1,7 +1,15 @@
 {
   "name": "@sendbird/uikit-utils",
-  "version": "2.0.1",
-  "description": "UIKit utilities",
+  "version": "3.0.4",
+  "description": "A collection of utility functions and constants for building chat UI components with Sendbird UIKit.",
+  "keywords": [
+    "sendbird",
+    "uikit",
+    "chat",
+    "UI components",
+    "utility functions",
+    "constants"
+  ],
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
   "types": "lib/typescript/src/index.d.ts",
@@ -16,12 +24,9 @@
   "scripts": {
     "test": "jest",
     "build": "bob build",
-    "clean": "del lib"
+    "clean": "del lib",
+    "publish:next": "npm publish --tag next"
   },
-  "keywords": [
-    "react",
-    "sendbird"
-  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/sendbird/sendbird-uikit-react-native.git",
@@ -43,17 +48,22 @@
   },
   "devDependencies": {
     "@types/react": "*",
+    "@types/react-native": "*",
     "react": "17.0.2",
-    "react-native": "0.67.4",
+    "react-native": "0.67.5",
     "react-native-builder-bob": "^0.18.0",
-    "typescript": "^4.1.3"
+    "typescript": "4.9.4"
   },
   "peerDependencies": {
-    "@sendbird/chat": "^4.0.13",
-    "react": ">=16.13.1"
+    "@sendbird/chat": "^4.9.2",
+    "react": ">=17.0.2",
+    "react-native": ">=0.65.0"
   },
   "peerDependenciesMeta": {
     "@sendbird/chat": {
+      "optional": true
+    },
+    "react-native": {
       "optional": true
     }
   },

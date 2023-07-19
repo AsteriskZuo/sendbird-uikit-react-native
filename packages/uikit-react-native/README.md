@@ -3,6 +3,8 @@
 [![Platform React-Native](https://img.shields.io/badge/Platform-React--Native-orange.svg)](https://reactnative.dev/)
 [![Language TypeScript](https://img.shields.io/badge/Language-TypeScript-orange.svg)](https://www.typescriptlang.org/)
 
+Sendbird UIKit for React Native: A feature-rich and customizable chat UI kit with messaging, channel management, and user authentication.
+
 > React-Native based UI kit based on sendbird javascript SDK
 
 ## Before getting started
@@ -44,12 +46,16 @@ UIKit for React-Native can be installed through either `yarn` or `npm`
 
 **Install dependencies**
 
+> Note: If you are using `react-native` version `0.72` or higher, you don't need to install `@sendbird/react-native-scrollview-enhancer`.
+
 ```sh
-npm i @sendbird/uikit-react-native \
-      @sendbird/chat \
-      date-fns \
-      react-native-safe-area-context \
-      @react-native-community/netinfo
+npm install @sendbird/uikit-react-native \
+            @sendbird/chat \
+            @sendbird/react-native-scrollview-enhancer \
+            date-fns \
+            react-native-safe-area-context \
+            @react-native-community/netinfo \
+            @react-native-async-storage/async-storage
 ```
 
 **Linking native modules**
@@ -93,15 +99,7 @@ Add the following permission usage descriptions to your `info.plist` file.
 | Privacy - Photo Library Usage Description           | string | $(PRODUCT_NAME) would like access to your photo library         |
 | Privacy - Photo Library Additions Usage Description | string | $(PRODUCT_NAME) would like to save photos to your photo library |
 
-> **NOTE**: If you use [react-native-permissions](https://github.com/zoontek/react-native-permissions#ios), you must update `Podfile` and run `pod install`
->
-> ```ruby
-> permissions_path = '../node_modules/react-native-permissions/ios'
-> pod 'Permission-Camera', :path => "#{permissions_path}/Camera"
-> pod 'Permission-PhotoLibrary', :path => "#{permissions_path}/PhotoLibrary"
-> pod 'Permission-MediaLibrary', :path => "#{permissions_path}/MediaLibrary"
-> pod 'Permission-PhotoLibraryAddOnly', :path => "#{permissions_path}/PhotoLibraryAddOnly"
-> ```
+> **NOTE**: If you use [react-native-permissions](https://github.com/zoontek/react-native-permissions#ios), you must update permissions and run `pod install`
 
 <br/>
 
@@ -117,10 +115,14 @@ const App = () => {
   return (
     <SendbirdUIKitContainer
       appId={'APP_ID'}
+      chatOptions={{
+        localCacheStorage: AsyncStorage,
+      }}
       platformServices={{
         file: FileService,
         notification: NotificationService,
         clipboard: ClipboardService,
+        media: MediaService,
       }}
     >
       {/* ... */}
@@ -136,47 +138,58 @@ In order to implement the interfaces to your React Native app more easily, we pr
 
 **Using React Native CLI**
 
-You can use `createNativeClipboardService`, `createNativeNotificationService` and `createNativeFileService` helper functions with below native modules.
+You can use `createNativeClipboardService`, `createNativeNotificationService`, `createNativeFileService` and `createNativeMediaService` helper functions with below native modules.
 
 ```sh
-npm install react-native-permissions \
+npm install react-native-video \
+            react-native-permissions \
+            react-native-file-access \
             react-native-image-picker \
             react-native-document-picker \
-            @react-native-camera-roll/camera-roll \
-            react-native-file-access \
+            react-native-create-thumbnail \
             @react-native-clipboard/clipboard \
+            @react-native-camera-roll/camera-roll \
             @react-native-firebase/app \
             @react-native-firebase/messaging \
+            @bam.tech/react-native-image-resizer
 
 npx pod-install
 ```
 
 ```ts
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as ImageResizer from '@bam.tech/react-native-image-resizer';
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import Clipboard from '@react-native-clipboard/clipboard';
 import RNFBMessaging from '@react-native-firebase/messaging';
+import * as CreateThumbnail from 'react-native-create-thumbnail';
 import * as DocumentPicker from 'react-native-document-picker';
 import * as FileAccess from 'react-native-file-access';
 import * as ImagePicker from 'react-native-image-picker';
 import * as Permissions from 'react-native-permissions';
+import Video from 'react-native-video';
 
-const ClipboardService = createNativeClipboardService(Clipboard);
-const NotificationService = createNativeNotificationService({
+const NativeClipboardService = createNativeClipboardService(Clipboard);
+const NativeNotificationService = createNativeNotificationService({
   messagingModule: RNFBMessaging,
   permissionModule: Permissions,
 });
-const FileService = createNativeFileService({
+const NativeFileService = createNativeFileService({
   fsModule: FileAccess,
   permissionModule: Permissions,
   imagePickerModule: ImagePicker,
   mediaLibraryModule: CameraRoll,
   documentPickerModule: DocumentPicker,
 });
+const NativeMediaService = createNativeMediaService({
+  VideoComponent: Video,
+  thumbnailModule: CreateThumbnail,
+  imageResizerModule: ImageResizer,
+});
 ```
 
 **Using Expo CLI**
 
-You can use `createExpoClipboardService`, `createExpoNotificationService` and `createExpoFileService` helper functions with below expo modules.
+You can use `createExpoClipboardService`, `createExpoNotificationService`, `createExpoFileService` and `createExpoMediaService` helper functions with below expo modules.
 
 ```sh
 expo install expo-image-picker \
@@ -184,28 +197,40 @@ expo install expo-image-picker \
              expo-media-library \
              expo-file-system \
              expo-clipboard \
-             expo-notifications
+             expo-notifications \
+             expo-av \
+             expo-video-thumbnails \
+             expo-image-manipulator
 ```
 
 ```ts
+import * as ExpoAV from 'expo-av';
 import * as ExpoClipboard from 'expo-clipboard';
 import * as ExpoDocumentPicker from 'expo-document-picker';
 import * as ExpoFS from 'expo-file-system';
+import * as ExpoImageManipulator from 'expo-image-manipulator';
 import * as ExpoImagePicker from 'expo-image-picker';
 import * as ExpoMediaLibrary from 'expo-media-library';
 import * as ExpoNotifications from 'expo-notifications';
+import * as ExpoVideoThumbnail from 'expo-video-thumbnails';
 
-const NotificationService = createExpoNotificationService(ExpoNotifications);
-const ClipboardService = createExpoClipboardService(ExpoClipboard);
-const FileService = createExpoFileService({
+const ExpoNotificationService = createExpoNotificationService(ExpoNotifications);
+const ExpoClipboardService = createExpoClipboardService(ExpoClipboard);
+const ExpoFileService = createExpoFileService({
   fsModule: ExpoFS,
   imagePickerModule: ExpoImagePicker,
   mediaLibraryModule: ExpoMediaLibrary,
   documentPickerModule: ExpoDocumentPicker,
 });
+const ExpoMediaService = createExpoMediaService({
+  avModule: ExpoAV,
+  thumbnailModule: ExpoVideoThumbnail,
+  imageManipulator: ExpoImageManipulator,
+  fsModule: ExpoFS,
+});
 ```
 
-### Local caching (optional)
+### Local caching (required)
 
 You can implement Local caching easily.
 
@@ -264,6 +289,7 @@ The example below shows how to integrate using `react-navigation`.
 ```tsx
 import { useNavigation, useRoute } from '@react-navigation/native';
 
+import { useGroupChannel } from '@sendbird/uikit-chat-hooks';
 import {
   createGroupChannelCreateFragment,
   createGroupChannelFragment,
@@ -279,14 +305,12 @@ const GroupChannelListScreen = () => {
   return (
     <GroupChannelListFragment
       onPressCreateChannel={(channelType) => {
-        // Navigate to GroupChannelCreate key function.
+        // Navigate to GroupChannelCreate function.
         navigation.navigate('GroupChannelCreate', { channelType });
       }}
       onPressChannel={(channel) => {
-        // Navigate to GroupChannel key function.
-        navigation.navigate('GroupChannel', {
-          serializedChannel: channel.serialize(),
-        });
+        // Navigate to GroupChannel function.
+        navigation.navigate('GroupChannel', { channelUrl: channel.url });
       }}
     />
   );
@@ -298,10 +322,8 @@ const GroupChannelCreateScreen = () => {
   return (
     <GroupChannelCreateFragment
       onCreateChannel={async (channel) => {
-        // Navigate to GroupChannel key function.
-        navigation.replace('GroupChannel', {
-          serializedChannel: channel.serialize(),
-        });
+        // Navigate to GroupChannel function.
+        navigation.replace('GroupChannel', { channelUrl: channel.url });
       }}
       onPressHeaderLeft={() => {
         // Go back to the previous screen.
@@ -316,13 +338,14 @@ const GroupChannelScreen = () => {
   const { params } = useRoute<any>();
 
   const { sdk } = useSendbirdChat();
-  const channel = sdk.GroupChannel.buildFromSerializedData(params.serializedChannel);
+  const { channel } = useGroupChannel(sdk, params.channelUrl);
+  if (!channel) return null;
 
   return (
     <GroupChannelFragment
       channel={channel}
       onChannelDeleted={() => {
-        // Navigate to GroupChannelList key function.
+        // Navigate to GroupChannelList function.
         navigation.navigate('GroupChannelList');
       }}
       onPressHeaderLeft={() => {
@@ -330,10 +353,8 @@ const GroupChannelScreen = () => {
         navigation.goBack();
       }}
       onPressHeaderRight={() => {
-        // Navigate to GroupChannelSettings key function.
-        navigation.navigate('GroupChannelSettings', {
-          serializedChannel: params.serializedChannel,
-        });
+        // Navigate to GroupChannelSettings function.
+        navigation.navigate('GroupChannelSettings', { channelUrl: params.channelUrl });
       }}
     />
   );
@@ -398,6 +419,7 @@ const App = () => {
         file: FileService,
         notification: NotificationService,
         clipboard: ClipboardService,
+        media: MediaService,
       }}
     >
       <Navigation />

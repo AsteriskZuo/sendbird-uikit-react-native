@@ -3,12 +3,12 @@ import type * as ExpoFs from 'expo-file-system';
 import type * as ExpoImagePicker from 'expo-image-picker';
 import type * as ExpoMediaLibrary from 'expo-media-library';
 
-import { getFileExtension, getFileType } from '@sendbird/uikit-utils';
+import { getFileType } from '@sendbird/uikit-utils';
 
 import SBUError from '../libs/SBUError';
+import expoBackwardUtils from '../utils/expoBackwardUtils';
 import type { ExpoMediaLibraryPermissionResponse, ExpoPermissionResponse } from '../utils/expoPermissionGranted';
 import expoPermissionGranted from '../utils/expoPermissionGranted';
-import fileTypeGuard from '../utils/fileTypeGuard';
 import type {
   FilePickerResponse,
   FileServiceInterface,
@@ -76,14 +76,10 @@ const createExpoFileService = ({
         })(),
       });
 
-      if (response.cancelled) return null;
+      if (expoBackwardUtils.imagePicker.isCanceled(response)) return null;
 
-      const { uri } = response;
-      const { size } = await fsModule.getInfoAsync(response.uri);
-      const ext = getFileExtension(uri);
-      const type = getFileType(ext);
-
-      return fileTypeGuard({ uri, size, type: `${type}/${ext.slice(1)}`, name: Date.now() + ext });
+      const [file] = await expoBackwardUtils.imagePicker.toFilePickerResponses(response, fsModule);
+      return file;
     }
     async openMediaLibrary(options: OpenMediaLibraryOptions) {
       const hasPermission = await this.hasMediaLibraryPermission('read');
@@ -95,7 +91,9 @@ const createExpoFileService = ({
         }
       }
 
+      const selectionLimit = options?.selectionLimit || 1;
       const response = await imagePickerModule.launchImageLibraryAsync({
+        selectionLimit,
         mediaTypes: (() => {
           switch (options?.mediaType) {
             case 'photo':
@@ -109,21 +107,17 @@ const createExpoFileService = ({
           }
         })(),
       });
-      if (response.cancelled) return null;
-      const { uri } = response;
-
-      const { size } = await fsModule.getInfoAsync(uri);
-      const ext = getFileExtension(uri);
-      const type = getFileType(ext);
-      return [fileTypeGuard({ uri, size, type: `${type}/${ext.slice(1)}`, name: Date.now() + ext })];
+      if (expoBackwardUtils.imagePicker.isCanceled(response)) return null;
+      return expoBackwardUtils.imagePicker.toFilePickerResponses(response, fsModule);
     }
 
     async openDocument(options?: OpenDocumentOptions): Promise<FilePickerResponse> {
       try {
         const response = await documentPickerModule.getDocumentAsync({ type: '*/*' });
-        if (response.type === 'cancel') return null;
-        const { mimeType, uri, size, name } = response;
-        return fileTypeGuard({ uri, size, name, type: mimeType });
+        if (expoBackwardUtils.documentPicker.isCanceled(response)) return null;
+
+        const [file] = await expoBackwardUtils.documentPicker.toFilePickerResponses(response);
+        return file;
       } catch (e) {
         options?.onOpenFailure?.(SBUError.UNKNOWN, e);
         return null;

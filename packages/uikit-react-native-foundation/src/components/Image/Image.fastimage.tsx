@@ -1,6 +1,7 @@
 import React from 'react';
 import type { FastImageProps, ResizeMode, Source } from 'react-native-fast-image';
 
+import FastImageInternal from './FastImageInternal';
 import type { SendbirdImageComponent, SendbirdImageProps } from './index';
 
 function convertCache(
@@ -30,6 +31,13 @@ function convertSource(source: SendbirdImageProps['source']): Source | number {
     cache: convertCache(source.cache), //'immutable' | 'web' | 'cacheOnly'
   };
 }
+function convertDefaultSource(source?: SendbirdImageProps['defaultSource']): number | undefined {
+  if (typeof source === 'number') {
+    return source;
+  }
+
+  return undefined;
+}
 
 function convertResizeMode(mode?: SendbirdImageProps['resizeMode']): ResizeMode | undefined {
   switch (mode) {
@@ -46,20 +54,23 @@ function convertResizeMode(mode?: SendbirdImageProps['resizeMode']): ResizeMode 
   }
 }
 
-let FastImage: (props: FastImageProps) => JSX.Element | null = () => null;
-
-try {
-  FastImage = require('react-native-fast-image') as (props: FastImageProps) => JSX.Element;
-} catch {}
-
-const Image_FastImage: SendbirdImageComponent = ({ source, resizeMode, onLoad, onError, style, ...props }) => {
+const Image_FastImage: SendbirdImageComponent = ({
+  source,
+  defaultSource,
+  resizeMode,
+  onLoad,
+  onError,
+  style,
+  ...props
+}) => {
   return (
-    <FastImage
+    <FastImageInternal
       {...props}
       onLoad={onLoad && ((e) => onLoad(e.nativeEvent))}
       onError={onError && (() => onError({}))}
       style={style as FastImageProps['style']}
       source={convertSource(source)}
+      defaultSource={convertDefaultSource(defaultSource)}
       resizeMode={convertResizeMode(resizeMode)}
     />
   );

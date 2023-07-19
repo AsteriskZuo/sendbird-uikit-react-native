@@ -1,19 +1,23 @@
 import type React from 'react';
-import type { FlatListProps } from 'react-native';
 
 import type { UseGroupChannelMessagesOptions } from '@sendbird/uikit-chat-hooks';
 import type {
+  OnBeforeHandler,
   SendbirdFileMessage,
   SendbirdFileMessageCreateParams,
+  SendbirdFileMessageUpdateParams,
   SendbirdGroupChannel,
   SendbirdMessage,
   SendbirdUser,
   SendbirdUserMessage,
   SendbirdUserMessageCreateParams,
+  SendbirdUserMessageUpdateParams,
 } from '@sendbird/uikit-utils';
 
-import type { FileType } from '../../platform/types';
+import type { ChannelInputProps, SuggestedMentionListProps } from '../../components/ChannelInput';
+import type { ChannelMessageListProps } from '../../components/ChannelMessageList';
 import type { CommonComponent } from '../../types';
+import type { PubSub } from '../../utils/pubsub';
 
 export interface GroupChannelProps {
   Fragment: {
@@ -21,14 +25,12 @@ export interface GroupChannelProps {
     onChannelDeleted: () => void;
     onPressHeaderLeft: GroupChannelProps['Header']['onPressHeaderLeft'];
     onPressHeaderRight: GroupChannelProps['Header']['onPressHeaderRight'];
-
-    onBeforeSendFileMessage?: (
-      params: SendbirdFileMessageCreateParams,
-    ) => SendbirdFileMessageCreateParams | Promise<SendbirdFileMessageCreateParams>;
-    onBeforeSendUserMessage?: (
-      params: SendbirdUserMessageCreateParams,
-    ) => SendbirdUserMessageCreateParams | Promise<SendbirdUserMessageCreateParams>;
     onPressMediaMessage?: GroupChannelProps['MessageList']['onPressMediaMessage'];
+
+    onBeforeSendUserMessage?: OnBeforeHandler<SendbirdUserMessageCreateParams>;
+    onBeforeSendFileMessage?: OnBeforeHandler<SendbirdFileMessageCreateParams>;
+    onBeforeUpdateUserMessage?: OnBeforeHandler<SendbirdUserMessageUpdateParams>;
+    onBeforeUpdateFileMessage?: OnBeforeHandler<SendbirdFileMessageUpdateParams>;
 
     renderMessage?: GroupChannelProps['MessageList']['renderMessage'];
     renderNewMessagesButton?: GroupChannelProps['MessageList']['renderNewMessagesButton'];
@@ -41,63 +43,54 @@ export interface GroupChannelProps {
     flatListProps?: GroupChannelProps['MessageList']['flatListProps'];
     sortComparator?: UseGroupChannelMessagesOptions['sortComparator'];
     collectionCreator?: UseGroupChannelMessagesOptions['collectionCreator'];
-    queryCreator?: UseGroupChannelMessagesOptions['queryCreator'];
 
-    /** @deprecated `onPressImageMessage` is deprecated, please use `onPressMediaMessage` instead **/
-    onPressImageMessage?: GroupChannelProps['MessageList']['onPressImageMessage'];
+    searchItem?: GroupChannelProps['MessageList']['searchItem'];
   };
   Header: {
+    shouldHideRight: () => boolean;
     onPressHeaderLeft: () => void;
     onPressHeaderRight: () => void;
   };
-  MessageList: {
-    enableMessageGrouping: boolean;
-    currentUserId?: string;
-    channel: SendbirdGroupChannel;
-    messages: SendbirdMessage[];
-    nextMessages: SendbirdMessage[];
-    newMessagesFromMembers: SendbirdMessage[];
-    onTopReached: () => void;
-    onBottomReached: () => void;
-
-    onResendFailedMessage: (failedMessage: SendbirdUserMessage | SendbirdFileMessage) => Promise<void>;
-    onDeleteMessage: (message: SendbirdUserMessage | SendbirdFileMessage) => Promise<void>;
-    onPressMediaMessage?: (message: SendbirdFileMessage, deleteMessage: () => Promise<void>, uri: string) => void;
-
-    renderMessage: (props: {
-      message: SendbirdMessage;
-      prevMessage?: SendbirdMessage;
-      nextMessage?: SendbirdMessage;
-      onPress?: () => void;
-      onLongPress?: () => void;
-      channel: GroupChannelProps['MessageList']['channel'];
-      currentUserId?: GroupChannelProps['MessageList']['currentUserId'];
-      enableMessageGrouping: GroupChannelProps['MessageList']['enableMessageGrouping'];
-    }) => React.ReactElement | null;
-    renderNewMessagesButton: null | CommonComponent<{
-      visible: boolean;
-      onPress: () => void;
-      newMessages: SendbirdMessage[];
-    }>;
-    renderScrollToBottomButton: null | CommonComponent<{
-      visible: boolean;
-      onPress: () => void;
-    }>;
-    flatListProps?: Omit<FlatListProps<SendbirdMessage>, 'data' | 'renderItem'>;
-
-    /** @deprecated `onPressImageMessage` is deprecated, please use `onPressMediaMessage` instead **/
-    onPressImageMessage?: (message: SendbirdFileMessage, uri: string) => void;
+  MessageList: Pick<
+    ChannelMessageListProps<SendbirdGroupChannel>,
+    | 'enableMessageGrouping'
+    | 'currentUserId'
+    | 'channel'
+    | 'messages'
+    | 'newMessages'
+    | 'scrolledAwayFromBottom'
+    | 'onScrolledAwayFromBottom'
+    | 'onTopReached'
+    | 'onBottomReached'
+    | 'onResendFailedMessage'
+    | 'onDeleteMessage'
+    | 'onPressMediaMessage'
+    | 'renderMessage'
+    | 'renderNewMessagesButton'
+    | 'renderScrollToBottomButton'
+    | 'flatListProps'
+    | 'hasNext'
+    | 'searchItem'
+  > & {
+    onResetMessageList: (callback?: () => void) => void;
   };
-  Input: {
-    onSendFileMessage: (file: FileType) => Promise<void>;
-    onSendUserMessage: (text: string) => Promise<void>;
-    onUpdateFileMessage: (editedFile: FileType, message: SendbirdFileMessage) => Promise<void>;
-    onUpdateUserMessage: (editedText: string, message: SendbirdUserMessage) => Promise<void>;
-  };
+  Input: Pick<
+    ChannelInputProps,
+    | 'shouldRenderInput'
+    | 'onPressSendUserMessage'
+    | 'onPressSendFileMessage'
+    | 'onPressUpdateUserMessage'
+    | 'onPressUpdateFileMessage'
+    | 'SuggestedMentionList'
+    | 'AttachmentsButton'
+  >;
+
+  SuggestedMentionList: SuggestedMentionListProps;
   Provider: {
     channel: SendbirdGroupChannel;
     enableTypingIndicator: boolean;
     keyboardAvoidOffset?: number;
+    groupChannelPubSub: PubSub<GroupChannelPubSubContextPayload>;
   };
 }
 
@@ -110,21 +103,37 @@ export interface GroupChannelContextsType {
   Fragment: React.Context<{
     headerTitle: string;
     channel: SendbirdGroupChannel;
-    editMessage?: SendbirdUserMessage | SendbirdFileMessage;
-    setEditMessage: (msg?: SendbirdUserMessage | SendbirdFileMessage) => void;
+    messageToEdit?: SendbirdUserMessage | SendbirdFileMessage;
+    setMessageToEdit: (msg?: SendbirdUserMessage | SendbirdFileMessage) => void;
     keyboardAvoidOffset?: number;
   }>;
   TypingIndicator: React.Context<{
     typingUsers: SendbirdUser[];
   }>;
+  PubSub: React.Context<PubSub<GroupChannelPubSubContextPayload>>;
 }
 export interface GroupChannelModule {
   Provider: CommonComponent<GroupChannelProps['Provider']>;
   Header: CommonComponent<GroupChannelProps['Header']>;
   MessageList: CommonComponent<GroupChannelProps['MessageList']>;
   Input: CommonComponent<GroupChannelProps['Input']>;
+  SuggestedMentionList: CommonComponent<GroupChannelProps['SuggestedMentionList']>;
   StatusEmpty: CommonComponent;
   StatusLoading: CommonComponent;
 }
 
 export type GroupChannelFragment = CommonComponent<GroupChannelProps['Fragment']>;
+
+export type GroupChannelPubSubContextPayload =
+  | {
+      type: 'MESSAGE_SENT_PENDING' | 'MESSAGE_SENT_SUCCESS';
+      data: {
+        message: SendbirdUserMessage | SendbirdFileMessage;
+      };
+    }
+  | {
+      type: 'MESSAGES_RECEIVED';
+      data: {
+        messages: SendbirdMessage[];
+      };
+    };

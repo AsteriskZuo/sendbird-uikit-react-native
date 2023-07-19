@@ -1,5 +1,6 @@
 import type React from 'react';
 
+import type { UseUserListOptions } from '@sendbird/uikit-chat-hooks';
 import type { SendbirdGroupChannel, SendbirdRestrictedUser } from '@sendbird/uikit-utils';
 
 import type { CommonComponent } from '../../types';
@@ -9,6 +10,7 @@ export type GroupChannelBannedUsersProps = {
     channel: SendbirdGroupChannel;
     onPressHeaderLeft: GroupChannelBannedUsersProps['Header']['onPressHeaderLeft'];
     renderUser?: GroupChannelBannedUsersProps['List']['renderUser'];
+    queryCreator?: UseUserListOptions<SendbirdRestrictedUser>['queryCreator'];
   };
   Header: {
     onPressHeaderLeft: () => void;
@@ -22,6 +24,9 @@ export type GroupChannelBannedUsersProps = {
   StatusError: {
     onPressRetry: () => void;
   };
+  Provider: {
+    channel: SendbirdGroupChannel;
+  };
 };
 
 /**
@@ -32,10 +37,11 @@ export type GroupChannelBannedUsersProps = {
 export type GroupChannelBannedUsersContextsType = {
   Fragment: React.Context<{
     headerTitle: string;
+    channel: SendbirdGroupChannel;
   }>;
 };
 export interface GroupChannelBannedUsersModule {
-  Provider: CommonComponent;
+  Provider: CommonComponent<GroupChannelBannedUsersProps['Provider']>;
   Header: CommonComponent<GroupChannelBannedUsersProps['Header']>;
   List: CommonComponent<GroupChannelBannedUsersProps['List']>;
   StatusEmpty: CommonComponent;

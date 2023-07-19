@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
-import { AppState } from 'react-native';
+import React from 'react';
 
 import { useGroupChannelList } from '@sendbird/uikit-chat-hooks';
-import { Logger, PASS, useFreshCallback } from '@sendbird/uikit-utils';
+import { PASS, useAppState, useFreshCallback } from '@sendbird/uikit-utils';
 
 import StatusComposition from '../components/StatusComposition';
 import GroupChannelPreviewContainer from '../containers/GroupChannelPreviewContainer';
@@ -17,55 +16,42 @@ import { useSendbirdChat } from '../hooks/useContext';
 const createGroupChannelListFragment = (initModule?: Partial<GroupChannelListModule>): GroupChannelListFragment => {
   const GroupChannelListModule = createGroupChannelListModule(initModule);
   return ({
-    TypeSelectorHeader,
     onPressChannel,
     onPressCreateChannel,
-    queryCreator,
     collectionCreator,
     renderGroupChannelPreview,
     skipTypeSelection = false,
     flatListProps = {},
     menuItemCreator = PASS,
   }) => {
-    const { sdk, currentUser, features, markAsDeliveredWithChannel } = useSendbirdChat();
+    const { sdk, currentUser, sbOptions, markAsDeliveredWithChannel } = useSendbirdChat();
     const { groupChannels, next, loading } = useGroupChannelList(sdk, currentUser?.userId, {
-      queryCreator,
       collectionCreator,
-      enableCollectionWithoutLocalCache: !queryCreator,
+      enableCollectionWithoutLocalCache: true,
     });
 
-    if (features.deliveryReceiptEnabled) {
-      useEffect(() => {
-        const listener = AppState.addEventListener('change', (status) => {
-          if (status === 'active') groupChannels.forEach(markAsDeliveredWithChannel);
-        });
-        return () => listener.remove();
-      }, []);
+    if (sbOptions.appInfo.deliveryReceiptEnabled) {
+      useAppState('change', (status) => {
+        if (status === 'active') groupChannels.forEach(markAsDeliveredWithChannel);
+      });
     }
 
     const _renderGroupChannelPreview: GroupChannelListProps['List']['renderGroupChannelPreview'] = useFreshCallback(
-      (channel, onLongPressChannel) => {
-        if (renderGroupChannelPreview) return renderGroupChannelPreview(channel, onLongPressChannel);
-        return (
-          <GroupChannelPreviewContainer
-            channel={channel}
-            onPress={() => onPressChannel(channel)}
-            onLongPress={() => onLongPressChannel()}
-          />
-        );
+      (props) => {
+        if (renderGroupChannelPreview) return renderGroupChannelPreview(props);
+        return <GroupChannelPreviewContainer {...props} />;
       },
     );
 
-    if (!currentUser) {
-      Logger.warn('Cannot render GroupChannelListFragment, please connect using `useConnection()` hook first');
-      return null;
-    }
+    const isChannelTypeAvailable =
+      sbOptions.appInfo.broadcastChannelEnabled || sbOptions.appInfo.superGroupChannelEnabled;
 
     return (
       <GroupChannelListModule.Provider>
         <GroupChannelListModule.Header />
         <StatusComposition loading={loading} LoadingComponent={<GroupChannelListModule.StatusLoading />}>
           <GroupChannelListModule.List
+            onPressChannel={onPressChannel}
             menuItemCreator={menuItemCreator}
             renderGroupChannelPreview={_renderGroupChannelPreview}
             groupChannels={groupChannels}
@@ -78,8 +64,7 @@ const createGroupChannelListFragment = (initModule?: Partial<GroupChannelListMod
           />
         </StatusComposition>
         <GroupChannelListModule.TypeSelector
-          skipTypeSelection={skipTypeSelection}
-          Header={TypeSelectorHeader}
+          skipTypeSelection={isChannelTypeAvailable ? skipTypeSelection : true}
           onSelectType={onPressCreateChannel}
         />
       </GroupChannelListModule.Provider>

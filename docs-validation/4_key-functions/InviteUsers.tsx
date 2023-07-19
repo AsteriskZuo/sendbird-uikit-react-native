@@ -3,7 +3,7 @@ import React  from "react";
 const MyAppUserBar = (_: Record<string, unknown>) => <></>;
 const createMyAppUserQuery = () => ({
   async next(): Promise<MyAppUser[]> {
-    return [{ uid: '', name: '', profile: '' }];
+    return [{ userId: '', name: '', profile: '' }];
   },
   isLoading: false,
   hasNext: false,
@@ -19,7 +19,7 @@ import type { SendbirdUser } from "@sendbird/uikit-utils";
 import { useGroupChannel } from "@sendbird/uikit-chat-hooks";
 
 const GroupChannelInviteFragment = createGroupChannelInviteFragment<SendbirdUser>();
-const GroupChannelInviteScreen = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelInviteScreen = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -82,11 +82,16 @@ const Component2 = () => {
  * Customization
  * {@link https://sendbird.com/docs/uikit/v3/react-native/key-functions/creating-a-channel/create-a-group-channel#2-customization}
  * */
+import type { UserStruct } from '@sendbird/uikit-utils';
 import { CustomQuery } from '@sendbird/uikit-chat-hooks';
 // import { useSendbirdChat, createGroupChannelInviteFragment } from '@sendbird/uikit-react-native';
 // import { useGroupChannel } from '@sendbird/uikit-chat-hooks';
 
-type MyAppUser = { uid: string; name: string; profile: string };
+interface MyAppUser extends UserStruct {
+  userId: string;
+  name: string;
+  profile: string;
+}
 
 const myAppUserQueryCreator = () => {
   const query = createMyAppUserQuery();
@@ -104,7 +109,7 @@ const myAppUserQueryCreator = () => {
 };
 
 const GroupChannelInviteFragment2 = createGroupChannelInviteFragment<MyAppUser>();
-const GroupChannelInviteScreen2 = ({ params }: { params: { channelUrl: string } }) => {
+const GroupChannelInviteScreen2 = ({ route: { params } }: any) => {
   const { sdk } = useSendbirdChat();
   const { channel } = useGroupChannel(sdk, params.channelUrl);
   if (!channel) return null;
@@ -118,9 +123,8 @@ const GroupChannelInviteScreen2 = ({ params }: { params: { channelUrl: string } 
       onPressHeaderLeft={navigateToBack}
       onInviteMembers={navigateToGroupChannel}
       queryCreator={myAppUserQueryCreator}
-      userIdsGenerator={(users) => users.map((u) => u.uid)}
       renderUser={(user, selectedUsers, setSelectedUsers) => {
-        const selected = selectedUsers.findIndex((u) => u.uid === user.uid) > -1;
+        const selected = selectedUsers.findIndex((u) => u.userId === user.userId) > -1;
         return <MyAppUserBar selected={selected} user={user} onToggle={setSelectedUsers} />;
       }}
     />

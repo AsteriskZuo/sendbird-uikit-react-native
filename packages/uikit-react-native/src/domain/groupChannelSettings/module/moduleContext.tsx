@@ -1,6 +1,6 @@
 import React, { createContext, useCallback } from 'react';
 
-import { useActiveGroupChannel, useChannelHandler } from '@sendbird/uikit-chat-hooks';
+import { useChannelHandler } from '@sendbird/uikit-chat-hooks';
 import { useActionMenu, useAlert, useBottomSheet, usePrompt, useToast } from '@sendbird/uikit-react-native-foundation';
 import {
   NOOP,
@@ -9,7 +9,7 @@ import {
   SendbirdGroupChannelUpdateParams,
   isDifferentChannel,
   useForceUpdate,
-  useUniqId,
+  useUniqHandlerId,
 } from '@sendbird/uikit-utils';
 
 import ProviderLayout from '../../../components/ProviderLayout';
@@ -27,27 +27,24 @@ export const GroupChannelSettingsContexts: GroupChannelSettingsContextsType = {
   }),
 };
 
-const HOOK_NAME = 'GroupChannelSettingsContextsProvider';
 export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['Provider'] = ({ children, channel }) => {
-  const uniqId = useUniqId(HOOK_NAME);
+  const handlerId = useUniqHandlerId('GroupChannelSettingsContextsProvider');
   const forceUpdate = useForceUpdate();
   const { STRINGS } = useLocalization();
   const { sdk } = useSendbirdChat();
   const { fileService } = usePlatformService();
   const { alert } = useAlert();
 
-  const { activeChannel, setActiveChannel } = useActiveGroupChannel(sdk, channel);
-
-  const onChannelChanged = (channel: SendbirdBaseChannel) => {
-    if (isDifferentChannel(channel, activeChannel) || !channel.isGroupChannel()) return;
-    setActiveChannel(channel);
+  const onChannelChanged = (eventChannel: SendbirdBaseChannel) => {
+    if (isDifferentChannel(eventChannel, channel)) return;
     forceUpdate();
   };
 
-  useChannelHandler(sdk, `${HOOK_NAME}_${uniqId}`, {
+  useChannelHandler(sdk, handlerId, {
     onChannelChanged: onChannelChanged,
     onChannelFrozen: onChannelChanged,
     onChannelUnfrozen: onChannelChanged,
+    onUserBanned: onChannelChanged,
   });
 
   const toast = useToast();
@@ -57,11 +54,10 @@ export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['P
 
   const updateChannel = useCallback(
     async (params: SendbirdGroupChannelUpdateParams) => {
-      const updatedChannel = await activeChannel.updateChannel(params);
-      setActiveChannel(updatedChannel);
+      await channel.updateChannel(params);
       forceUpdate();
     },
-    [activeChannel],
+    [channel],
   );
 
   const changeChannelName = useCallback(() => {
@@ -69,10 +65,10 @@ export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['P
       title: STRINGS.GROUP_CHANNEL_SETTINGS.DIALOG_CHANGE_NAME_PROMPT_TITLE,
       submitLabel: STRINGS.GROUP_CHANNEL_SETTINGS.DIALOG_CHANGE_NAME_PROMPT_OK,
       placeholder: STRINGS.GROUP_CHANNEL_SETTINGS.DIALOG_CHANGE_NAME_PROMPT_PLACEHOLDER,
-      defaultValue: activeChannel.name,
+      defaultValue: channel.name,
       onSubmit: (channelName) => updateChannel({ name: channelName }),
     });
-  }, [STRINGS, updateChannel, activeChannel.name]);
+  }, [STRINGS, updateChannel, channel.name]);
 
   const changeChannelImage = useCallback(() => {
     openMenu({
@@ -87,7 +83,10 @@ export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['P
                 if (error.code === SBUError.CODE.ERR_PERMISSIONS_DENIED) {
                   alert({
                     title: STRINGS.DIALOG.ALERT_PERMISSIONS_TITLE,
-                    message: STRINGS.DIALOG.ALERT_PERMISSIONS_MESSAGE('camera', 'UIKitSample'),
+                    message: STRINGS.DIALOG.ALERT_PERMISSIONS_MESSAGE(
+                      STRINGS.LABELS.PERMISSION_CAMERA,
+                      STRINGS.LABELS.PERMISSION_APP_NAME,
+                    ),
                     buttons: [{ text: STRINGS.DIALOG.ALERT_PERMISSIONS_OK, onPress: () => SBUUtils.openSettings() }],
                   });
                 } else {
@@ -110,7 +109,10 @@ export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['P
                 if (error.code === SBUError.CODE.ERR_PERMISSIONS_DENIED) {
                   alert({
                     title: STRINGS.DIALOG.ALERT_PERMISSIONS_TITLE,
-                    message: STRINGS.DIALOG.ALERT_PERMISSIONS_MESSAGE('device storage', 'UIKitSample'),
+                    message: STRINGS.DIALOG.ALERT_PERMISSIONS_MESSAGE(
+                      STRINGS.LABELS.PERMISSION_DEVICE_STORAGE,
+                      STRINGS.LABELS.PERMISSION_APP_NAME,
+                    ),
                     buttons: [{ text: STRINGS.DIALOG.ALERT_PERMISSIONS_OK, onPress: () => SBUUtils.openSettings() }],
                   });
                 } else {
@@ -140,7 +142,7 @@ export const GroupChannelSettingsContextsProvider: GroupChannelSettingsModule['P
     <ProviderLayout>
       <GroupChannelSettingsContexts.Fragment.Provider
         value={{
-          channel: activeChannel,
+          channel,
           headerTitle: STRINGS.GROUP_CHANNEL_SETTINGS.HEADER_TITLE,
           headerRight: STRINGS.GROUP_CHANNEL_SETTINGS.HEADER_RIGHT,
           onPressHeaderRight,

@@ -1,7 +1,7 @@
 import { useReducer } from 'react';
 
 import type { SendbirdChannel } from '@sendbird/uikit-utils';
-import { SendbirdGroupChannel, getGroupChannels } from '@sendbird/uikit-utils';
+import { SendbirdGroupChannel, getGroupChannels, mergeObjectArrays } from '@sendbird/uikit-utils';
 
 type Order = 'latest_last_message' | 'chronological' | 'channel_name_alphabetical' | 'metadata_value_alphabetical';
 
@@ -19,8 +19,8 @@ type Action =
       value: { channelUrls: string[] };
     }
   | {
-      type: 'set_channels';
-      value: { channels: SendbirdChannel[]; clearPrev: boolean };
+      type: 'append_channels';
+      value: { channels: SendbirdChannel[]; clearBeforeAction: boolean };
     }
   | {
       type: 'update_order';
@@ -38,10 +38,12 @@ const defaultReducer = ({ ...draft }: State, action: Action) => {
   const compareByOrder = createCompareByOrder(draft.order);
 
   switch (action.type) {
-    case 'update_refreshing':
+    case 'update_refreshing': {
+      draft.refreshing = action.value.status;
+      break;
+    }
     case 'update_loading': {
-      const key = action.type === 'update_loading' ? 'loading' : 'refreshing';
-      draft[key] = action.value.status;
+      draft.loading = action.value.status;
       break;
     }
     case 'update_channels': {
@@ -62,11 +64,12 @@ const defaultReducer = ({ ...draft }: State, action: Action) => {
       compareByOrder && (draft.groupChannels = draft.groupChannels.sort(compareByOrder));
       break;
     }
-    case 'set_channels': {
-      if (action.value.clearPrev) {
-        draft.groupChannels = getGroupChannels(action.value.channels);
+    case 'append_channels': {
+      const groupChannels = getGroupChannels(action.value.channels);
+      if (action.value.clearBeforeAction) {
+        draft.groupChannels = groupChannels;
       } else {
-        draft.groupChannels = [...draft.groupChannels, ...getGroupChannels(action.value.channels)];
+        draft.groupChannels = mergeObjectArrays(draft.groupChannels, groupChannels, 'url');
       }
 
       compareByOrder && (draft.groupChannels = draft.groupChannels.sort(compareByOrder));
@@ -74,6 +77,8 @@ const defaultReducer = ({ ...draft }: State, action: Action) => {
     }
     case 'update_order': {
       draft.order = action.value.order;
+      const compareByOrder = createCompareByOrder(draft.order);
+      compareByOrder && (draft.groupChannels = draft.groupChannels.sort(compareByOrder));
       break;
     }
   }
@@ -94,8 +99,8 @@ export const useGroupChannelListReducer = (order?: Order) => {
   const deleteChannels = (channelUrls: string[]) => {
     dispatch({ type: 'delete_channels', value: { channelUrls } });
   };
-  const setChannels = (channels: SendbirdChannel[], clearPrev: boolean) => {
-    dispatch({ type: 'set_channels', value: { channels, clearPrev } });
+  const appendChannels = (channels: SendbirdChannel[], clearBeforeAction: boolean) => {
+    dispatch({ type: 'append_channels', value: { channels, clearBeforeAction } });
   };
   const updateLoading = (status: boolean) => {
     dispatch({ type: 'update_loading', value: { status } });
@@ -112,7 +117,7 @@ export const useGroupChannelListReducer = (order?: Order) => {
     updateRefreshing,
     updateChannels,
     deleteChannels,
-    setChannels,
+    appendChannels,
 
     updateOrder,
 

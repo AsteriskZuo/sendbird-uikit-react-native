@@ -4,7 +4,17 @@
 import type React from 'react';
 
 import type SendbirdChat from '@sendbird/chat';
-import type { BaseChannel, RestrictedUser, SendbirdError as SBError, User, UserUpdateParams } from '@sendbird/chat';
+import type {
+  BaseChannel,
+  Emoji,
+  EmojiCategory,
+  EmojiContainer,
+  Participant,
+  RestrictedUser,
+  SendbirdError as SBError,
+  User,
+  UserUpdateParams,
+} from '@sendbird/chat';
 import type {
   GroupChannel,
   GroupChannelCollection,
@@ -15,21 +25,27 @@ import type {
   Member,
   MessageCollection,
 } from '@sendbird/chat/groupChannel';
-import type { ModuleNamespaces, SendableMessage } from '@sendbird/chat/lib/__definition';
+import type {
+  ModuleNamespaces,
+  OpenChannelCreateParams,
+  OpenChannelUpdateParams,
+  SendableMessage,
+} from '@sendbird/chat/lib/__definition';
 import type {
   AdminMessage,
   BaseMessage,
   FileMessage,
   FileMessageCreateParams,
   FileMessageUpdateParams,
+  MessageSearchQuery,
+  MultipleFilesMessage,
   PreviousMessageListQuery,
+  Reaction,
   UserMessage,
   UserMessageCreateParams,
   UserMessageUpdateParams,
 } from '@sendbird/chat/message';
-import type { OpenChannel, OpenChannelModule } from '@sendbird/chat/openChannel';
-
-import './';
+import type { OpenChannel, OpenChannelListQuery, OpenChannelModule } from '@sendbird/chat/openChannel';
 
 export type FilterByValueType<T extends object, Type> = {
   [K in keyof T as T[K] extends Type ? K : never]: T[K];
@@ -59,11 +75,18 @@ export type Optional<T> = T | undefined;
 
 export type ContextValue<T extends React.Context<any>> = T extends React.Context<infer V> ? V : never;
 
+export type OnBeforeHandler<T> = (params: T) => T | Promise<T>;
+
+export interface UserStruct {
+  userId: string;
+}
+
 export type SendbirdChatSDK = SendbirdChat & ModuleNamespaces<[GroupChannelModule, OpenChannelModule]>;
 export type SendbirdMessage = BaseMessage | FileMessage | UserMessage | AdminMessage | SendableMessage;
 export type SendbirdChannel = BaseChannel | GroupChannel | OpenChannel;
 export type SendbirdUserMessage = UserMessage;
 export type SendbirdFileMessage = FileMessage;
+export type SendbirdMultipleFilesMessage = MultipleFilesMessage;
 export type SendbirdAdminMessage = AdminMessage;
 export type SendbirdBaseMessage = BaseMessage;
 export type SendbirdSendableMessage = SendableMessage;
@@ -71,20 +94,33 @@ export type SendbirdFileMessageCreateParams = FileMessageCreateParams;
 export type SendbirdFileMessageUpdateParams = FileMessageUpdateParams;
 export type SendbirdUserMessageCreateParams = UserMessageCreateParams;
 export type SendbirdUserMessageUpdateParams = UserMessageUpdateParams;
+
 export type SendbirdGroupChannelCreateParams = GroupChannelCreateParams;
 export type SendbirdGroupChannelUpdateParams = GroupChannelUpdateParams;
+export type SendbirdOpenChannelCreateParams = OpenChannelCreateParams;
+export type SendbirdOpenChannelUpdateParams = OpenChannelUpdateParams;
+
 export type SendbirdUserUpdateParams = UserUpdateParams;
 export type SendbirdUser = User;
 export type SendbirdRestrictedUser = RestrictedUser;
 export type SendbirdMember = Member;
+export type SendbirdParticipant = Participant;
+
 export type SendbirdGroupChannel = GroupChannel;
 export type SendbirdBaseChannel = BaseChannel;
 export type SendbirdOpenChannel = OpenChannel;
 
+export type SendbirdReaction = Reaction;
+export type SendbirdEmoji = Emoji;
+export type SendbirdEmojiCategory = EmojiCategory;
+export type SendbirdEmojiContainer = EmojiContainer;
+
 export type SendbirdGroupChannelCollection = GroupChannelCollection;
 export type SendbirdGroupChannelListQuery = GroupChannelListQuery;
+export type SendbirdOpenChannelListQuery = OpenChannelListQuery;
 export type SendbirdMessageCollection = MessageCollection;
 export type SendbirdPreviousMessageListQuery = PreviousMessageListQuery;
+export type SendbirdMessageSearchQuery = MessageSearchQuery;
 
 export type SendbirdError = SBError;
 

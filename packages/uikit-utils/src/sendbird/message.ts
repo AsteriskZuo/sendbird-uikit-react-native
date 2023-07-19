@@ -1,11 +1,17 @@
+import { MessageSearchOrder } from '@sendbird/chat/message';
+
+import { getFileExtension, getFileType } from '../shared/file';
 import type {
+  SendbirdBaseChannel,
   SendbirdBaseMessage,
   SendbirdDataPayload,
   SendbirdFileMessage,
+  SendbirdGroupChannel,
   SendbirdMessage,
+  SendbirdReaction,
   SendbirdSendableMessage,
 } from '../types';
-import { messageTime } from '../ui-format/common';
+import { getMessageTimeFormat } from '../ui-format/common';
 
 export function isNewMessage(msg: SendbirdMessage, currentUserId?: string) {
   const myMessage = isMyMessage(msg, currentUserId);
@@ -67,7 +73,7 @@ export function calcMessageGrouping(
     if (!prev) return false;
     if (curr.isAdminMessage()) return false;
     if (!hasSameSender(curr, prev)) return false;
-    if (messageTime(new Date(curr.createdAt)) !== messageTime(new Date(prev.createdAt))) return false;
+    if (getMessageTimeFormat(new Date(curr.createdAt)) !== getMessageTimeFormat(new Date(prev.createdAt))) return false;
     return true;
   };
 
@@ -76,7 +82,7 @@ export function calcMessageGrouping(
     if (!next) return false;
     if (curr.isAdminMessage()) return false;
     if (!hasSameSender(curr, next)) return false;
-    if (messageTime(new Date(curr.createdAt)) !== messageTime(new Date(next.createdAt))) return false;
+    if (getMessageTimeFormat(new Date(curr.createdAt)) !== getMessageTimeFormat(new Date(next.createdAt))) return false;
     return true;
   };
 
@@ -109,4 +115,74 @@ export function isSendbirdNotification(dataPayload?: {
 
 export function parseSendbirdNotification(dataPayload: RawSendbirdDataPayload): SendbirdDataPayload {
   return typeof dataPayload.sendbird === 'string' ? JSON.parse(dataPayload.sendbird) : dataPayload.sendbird;
+}
+
+export function shouldRenderReaction(channel: SendbirdBaseChannel, reactionEnabled: boolean) {
+  if (channel.isOpenChannel()) {
+    return false;
+  }
+
+  if (channel.isGroupChannel()) {
+    if (channel.isBroadcast) return false;
+    if (channel.isSuper) return false;
+    if (channel.isEphemeral) return false;
+  }
+
+  return reactionEnabled;
+}
+
+export function getReactionCount(reaction: SendbirdReaction) {
+  return reaction.userIds.length;
+}
+
+type MessageType =
+  | 'user'
+  | 'admin'
+  | 'file'
+  | 'unknown'
+  | `user.${'opengraph'}`
+  | `file.${'image' | 'video' | 'audio'}`;
+
+export function getFileTypeFromMessage(message: SendbirdFileMessage) {
+  return getFileType(message.type || getFileExtension(message.name));
+}
+
+export function getMessageType(message: SendbirdMessage): MessageType {
+  if (message.isAdminMessage()) {
+    return 'admin';
+  }
+
+  if (message.isUserMessage()) {
+    if (message.ogMetaData) {
+      return 'user.opengraph';
+    }
+    return 'user';
+  }
+
+  if (message.isFileMessage()) {
+    const fileType = getFileTypeFromMessage(message);
+    switch (fileType) {
+      case 'image':
+      case 'video': {
+        return `file.${fileType}`;
+      }
+      case 'audio': {
+        return `file.${fileType}`;
+      }
+      default: {
+        return 'file';
+      }
+    }
+  }
+
+  return 'unknown';
+}
+
+export function getDefaultMessageSearchQueryParams(channel: SendbirdGroupChannel, keyword: string) {
+  return {
+    keyword,
+    channelUrl: channel.url,
+    messageTimestampFrom: Math.max(channel.joinedAt, channel.invitedAt),
+    order: MessageSearchOrder.TIMESTAMP,
+  };
 }

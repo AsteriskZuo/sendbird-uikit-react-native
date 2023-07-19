@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { DependencyList } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 
 type Destructor = () => void;
 type AsyncEffectCallback = () => void | Destructor | Promise<void> | Promise<Destructor>;
@@ -11,6 +11,11 @@ export const useUniqId = (key: string) => {
     if (!idPool[key]) idPool[key] = 1;
     return idPool[key]++;
   })[0];
+};
+
+export const useUniqHandlerId = (name: string) => {
+  const id = useUniqId(name);
+  return `${name}_${id}`;
 };
 
 export const useForceUpdate = () => {
@@ -56,8 +61,54 @@ export const useIsMountedRef = () => {
   return isMounted;
 };
 
+export const useIsFirstMount = () => {
+  const isFirstMount = useRef(true);
+
+  if (isFirstMount.current) {
+    isFirstMount.current = false;
+    return true;
+  }
+
+  return isFirstMount.current;
+};
+
 export const useFreshCallback = <T extends (...args: any[]) => any>(callback: T): T => {
   const ref = useRef<T>(callback);
   ref.current = callback;
   return useCallback(((...args) => ref.current(...args)) as T, []);
+};
+
+export const useDebounceEffect = (action: () => void, delay: number, deps: DependencyList = []) => {
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    timeoutRef.current = setTimeout(async () => {
+      try {
+        await action();
+      } finally {
+        timeoutRef.current = undefined;
+      }
+    }, delay);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = undefined;
+      }
+    };
+  }, [delay, ...deps]);
+};
+
+export const usePartialState = <S>(initialState: S) => {
+  return useReducer((prev: S, state: Partial<S>) => ({ ...prev, ...state }), initialState);
+};
+
+export const useRefTracker = <T>(target: T) => {
+  const ref = useRef(target);
+
+  useLayoutEffect(() => {
+    ref.current = target;
+  });
+
+  return ref;
 };

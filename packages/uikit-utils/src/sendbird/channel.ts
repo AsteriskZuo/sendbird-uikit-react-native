@@ -1,14 +1,11 @@
-import { createBufferedRequest } from '../shared/bufferedRequest';
+import { BufferedRequest } from '../shared/bufferedRequest';
 import type {
   SendbirdBaseChannel,
   SendbirdChannel,
-  SendbirdChatSDK,
   SendbirdGroupChannel,
+  SendbirdGroupChannelCreateParams,
   SendbirdOpenChannel,
 } from '../types';
-
-const markAsReadBuffReq = createBufferedRequest(10);
-const markAsDeliveredBuffReq = createBufferedRequest(10);
 
 /**
  * Diff utils for channel
@@ -21,21 +18,32 @@ export function isDifferentChannel<T extends SendbirdBaseChannel>(a?: T, b?: T):
   return a.url !== b.url;
 }
 
-export const isGroupChannelChatUnavailable = (channel: SendbirdGroupChannel) => {
-  return channel.myMutedState === 'muted' || (channel.isFrozen && channel.myRole !== 'operator');
+export const getGroupChannelChatAvailableState = (channel: SendbirdGroupChannel) => {
+  const isOperator = channel.myRole === 'operator';
+  const frozen = channel.isFrozen && !isOperator;
+  const muted = channel.myMutedState === 'muted';
+  const disabled = frozen || muted;
+  return { disabled, frozen, muted };
 };
 
-export const confirmAndMarkAsRead = async (sdk: SendbirdChatSDK, channels: SendbirdBaseChannel[]) => {
-  const channelUrls = channels.filter((it) => it.isGroupChannel() && it.unreadMessageCount > 0).map((it) => it.url);
-  if (channelUrls.length > 0) {
-    markAsReadBuffReq.push(() => sdk.groupChannel.markAsReadWithChannelUrls(channelUrls));
-  }
+export const getOpenChannelChatAvailableState = async (channel: SendbirdOpenChannel, userId: string) => {
+  const isOperator = channel.isOperator(userId);
+  const frozen = channel.isFrozen && !isOperator;
+  const muted = (await channel.getMyMutedInfo()).isMuted;
+  const disabled = frozen || muted;
+  return { disabled, frozen, muted };
 };
 
-export const confirmAndMarkAsDelivered = async (sdk: SendbirdChatSDK, channel: SendbirdBaseChannel) => {
-  if (channel.isGroupChannel() && channel.unreadMessageCount > 0) {
-    markAsDeliveredBuffReq.push(() => sdk.groupChannel.markAsDelivered(channel.url));
-  }
+export const confirmAndMarkAsRead = async (channels: SendbirdBaseChannel[]) => {
+  channels
+    .filter((it): it is SendbirdGroupChannel => it.isGroupChannel() && it.unreadMessageCount > 0)
+    .forEach((it) => BufferedRequest.markAsRead.push(() => it.markAsRead(), it.url));
+};
+
+export const confirmAndMarkAsDelivered = async (channels: SendbirdBaseChannel[]) => {
+  channels
+    .filter((it): it is SendbirdGroupChannel => it.isGroupChannel() && it.unreadMessageCount > 0)
+    .forEach((it) => BufferedRequest.markAsDelivered.push(() => it.markAsDelivered(), it.url));
 };
 
 export function isDefaultCoverImage(coverUrl: string) {
@@ -52,4 +60,24 @@ export function getGroupChannels(channels: SendbirdChannel[]): SendbirdGroupChan
 
 export function getOpenChannels(channels: SendbirdChannel[]): SendbirdOpenChannel[] {
   return channels.filter((c): c is SendbirdOpenChannel => c.isOpenChannel());
+}
+
+export function getChannelUniqId(channel: SendbirdChannel) {
+  return channel.url;
+}
+
+export function getDefaultGroupChannelCreateParams(params: {
+  invitedUserIds: string[];
+  currentUserId?: string;
+}): SendbirdGroupChannelCreateParams {
+  const createParams: SendbirdGroupChannelCreateParams = {
+    name: '',
+    coverUrl: '',
+    isDistinct: false,
+    invitedUserIds: params.invitedUserIds,
+  };
+
+  if (params.currentUserId) createParams.operatorUserIds = [params.currentUserId];
+
+  return createParams;
 }

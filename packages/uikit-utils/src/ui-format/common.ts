@@ -1,5 +1,7 @@
 import type { Locale } from 'date-fns';
-import format from 'date-fns/format';
+import { format, isThisYear, isToday, isYesterday } from 'date-fns';
+
+import type { SendbirdBaseMessage } from '../types';
 
 type TruncateMode = 'head' | 'mid' | 'tail';
 type TruncateOption = { mode: TruncateMode; maxLen: number; separator: string };
@@ -38,15 +40,16 @@ export const truncate = (str: string, opts: Partial<TruncateOption> = defaultOpt
 };
 
 /**
- * Badge count truncate util
+ * Count truncate util
  * If count exceed the limit, it comes in the form of "MAX+"
  *
  * @param {number} count
  * @param {number} MAX default 99
+ * @param {string} MAX_SUFFIX default +
  * @returns {string}
  * */
-export const truncatedBadgeCount = (count: number, MAX = 99) => {
-  if (count >= MAX) return `${MAX}+`;
+export const truncatedCount = (count: number, MAX = 99, MAX_SUFFIX = '+') => {
+  if (count >= MAX) return `${MAX}${MAX_SUFFIX}`;
   return `${count}`;
 };
 
@@ -57,8 +60,9 @@ export const truncatedBadgeCount = (count: number, MAX = 99) => {
  * @param {Locale} [locale]
  * @returns {string}
  * */
-export const dateSeparator = (date: Date, locale?: Locale): string => {
-  return format(date, 'E, LLL dd', { locale });
+export const getDateSeparatorFormat = (date: Date, locale?: Locale): string => {
+  if (isThisYear(date)) return format(date, 'MMM dd, yyyy', { locale });
+  return format(date, 'E, MMM dd', { locale });
 };
 
 /**
@@ -68,6 +72,56 @@ export const dateSeparator = (date: Date, locale?: Locale): string => {
  * @param {Locale} [locale]
  * @returns {string}
  * */
-export const messageTime = (date: Date, locale?: Locale): string => {
+export const getMessageTimeFormat = (date: Date, locale?: Locale): string => {
   return format(date, 'p', { locale });
+};
+
+/**
+ * Message preview title text
+ * */
+export const getMessagePreviewTitle = (message: SendbirdBaseMessage, EMPTY_USERNAME = '(No name)') => {
+  if (message.isFileMessage() || message.isUserMessage()) {
+    return message.sender.nickname || EMPTY_USERNAME;
+  }
+  if (message.isAdminMessage()) {
+    return 'Admin';
+  }
+  return EMPTY_USERNAME;
+};
+
+/**
+ * Message preview body text
+ * */
+export const getMessagePreviewBody = (message: SendbirdBaseMessage, EMPTY_MESSAGE = '') => {
+  if (message.isFileMessage()) {
+    const extIdx = message.name.lastIndexOf('.');
+    if (extIdx > -1) {
+      const file = message.name.slice(0, extIdx);
+      const ext = message.name.slice(extIdx);
+      return file + ext;
+    }
+
+    return message.name;
+  }
+
+  if (message.isUserMessage()) {
+    return message.message ?? EMPTY_MESSAGE;
+  }
+
+  if (message.isAdminMessage()) {
+    return message.message ?? EMPTY_MESSAGE;
+  }
+
+  return EMPTY_MESSAGE;
+};
+
+/**
+ * Message preview time format
+ * */
+export const getMessagePreviewTime = (timestamp: number, locale?: Locale) => {
+  if (isToday(timestamp)) return format(timestamp, 'p', { locale });
+  if (isYesterday(timestamp)) return 'Yesterday';
+  if (isThisYear(timestamp)) return format(timestamp, 'MMM dd', { locale });
+
+  return format(timestamp, 'yyyy/MM/dd', { locale });
 };
